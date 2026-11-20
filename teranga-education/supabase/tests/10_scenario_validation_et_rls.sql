@@ -1,0 +1,470 @@
+-- =============================================================================
+-- TEST : scénario de validation T (14 étapes) + cloisonnement RLS
+--
+-- TOUTES LES DONNÉES CI-DESSOUS SONT FICTIVES ET SERVENT UNIQUEMENT AU TEST.
+-- Les intitulés « OBJECTIF FICTIF » ne sont PAS des objectifs du programme
+-- officiel sénégalais.
+-- =============================================================================
+\set ON_ERROR_STOP 1
+set client_min_messages = notice;
+
+-- -----------------------------------------------------------------------------
+-- Outils de test
+-- -----------------------------------------------------------------------------
+create schema tests;
+grant usage on schema tests to authenticated;
+
+create table tests.ids (k text primary key, v uuid not null);
+grant select, insert, update on tests.ids to authenticated;
+
+create function tests.id(p text) returns uuid language sql stable as $$ select v from tests.ids where k = p $$;
+create function tests.keep(p text, v uuid) returns uuid language sql as $$
+  insert into tests.ids values (p, v) on conflict (k) do update set v = excluded.v returning v $$;
+
+create function tests.login(p uuid) returns void language sql as $$
+  select set_config('request.jwt.claims', json_build_object('sub', p)::text, false)
+$$;
+
+create function tests.ok(cond boolean, label text) returns void language plpgsql as $$
+begin
+  if cond is distinct from true then
+    raise exception 'ÉCHEC : %', label;
+  end if;
+  raise notice 'OK  : %', label;
+end $$;
+
+create function tests.fails(stmt text, label text) returns void language plpgsql as $$
+begin
+  begin
+    execute stmt;
+  exception when others then
+    raise notice 'OK  : % (refusé : %)', label, sqlerrm;
+    return;
+  end;
+  raise exception 'ÉCHEC : % (aurait dû être refusé)', label;
+end $$;
+
+grant execute on all functions in schema tests to authenticated;
+
+-- -----------------------------------------------------------------------------
+-- Comptes fictifs (en production : créés par une fonction serveur de l'admin)
+-- -----------------------------------------------------------------------------
+insert into auth.users (id) values
+  ('00000000-0000-0000-0000-0000000000a1'),  -- admin
+  ('00000000-0000-0000-0000-0000000000a2'),  -- coordinateur
+  ('00000000-0000-0000-0000-0000000000b1'),  -- encadreur 1 (affecté)
+  ('00000000-0000-0000-0000-0000000000b2'),  -- encadreur 2 (non affecté)
+  ('00000000-0000-0000-0000-0000000000c1'),  -- parent 1
+  ('00000000-0000-0000-0000-0000000000c2'),  -- parent 2 (autre famille)
+  ('00000000-0000-0000-0000-0000000000d1'),  -- compte élève 1 (CE2)
+  ('00000000-0000-0000-0000-0000000000d2');  -- compte élève 2 (autre famille)
+
+insert into profiles (id, first_name, last_name, phone) values
+  ('00000000-0000-0000-0000-0000000000a1', 'Admin',   'FICTIF', null),
+  ('00000000-0000-0000-0000-0000000000a2', 'Coord',   'FICTIF', null),
+  ('00000000-0000-0000-0000-0000000000b1', 'Encadreur1', 'FICTIF', null),
+  ('00000000-0000-0000-0000-0000000000b2', 'Encadreur2', 'FICTIF', null),
+  ('00000000-0000-0000-0000-0000000000c1', 'Parent1', 'FICTIF', '+221700000001'),
+  ('00000000-0000-0000-0000-0000000000c2', 'Parent2', 'FICTIF', '+221700000002'),
+  ('00000000-0000-0000-0000-0000000000d1', 'Eleve1',  'FICTIF', null),
+  ('00000000-0000-0000-0000-0000000000d2', 'Eleve2',  'FICTIF', null);
+
+insert into user_roles (user_id, role) values
+  ('00000000-0000-0000-0000-0000000000a1', 'admin'),
+  ('00000000-0000-0000-0000-0000000000a2', 'coordinateur'),
+  ('00000000-0000-0000-0000-0000000000b1', 'encadreur'),
+  ('00000000-0000-0000-0000-0000000000b2', 'encadreur'),
+  ('00000000-0000-0000-0000-0000000000c1', 'parent'),
+  ('00000000-0000-0000-0000-0000000000c2', 'parent'),
+  ('00000000-0000-0000-0000-0000000000d1', 'eleve'),
+  ('00000000-0000-0000-0000-0000000000d2', 'eleve');
+
+select tests.keep('admin',  '00000000-0000-0000-0000-0000000000a1'),
+       tests.keep('coord',  '00000000-0000-0000-0000-0000000000a2'),
+       tests.keep('enc1',   '00000000-0000-0000-0000-0000000000b1'),
+       tests.keep('enc2',   '00000000-0000-0000-0000-0000000000b2'),
+       tests.keep('par1',   '00000000-0000-0000-0000-0000000000c1'),
+       tests.keep('par2',   '00000000-0000-0000-0000-0000000000c2'),
+       tests.keep('acc1',   '00000000-0000-0000-0000-0000000000d1'),
+       tests.keep('acc2',   '00000000-0000-0000-0000-0000000000d2');
+
+-- À partir d'ici, tout s'exécute comme un utilisateur ordinaire, soumis à RLS.
+set role authenticated;
+
+-- Utilisateur non connecté : rien.
+select tests.login(null);
+select tests.ok((select count(*) from students) = 0, 'Sans connexion, aucun élève visible');
+
+-- =============================================================================
+-- Préparation par la direction : référentiel PROVISOIRE de test
+-- =============================================================================
+select tests.login(tests.id('coord'));
+with insert_v as (
+  insert into curriculum_versions (name, description)
+  values ('TEST — référentiel provisoire', 'Données fictives de test, non officielles')
+  returning id)
+select tests.keep('version', insert_v.id) from insert_v;
+with t as (
+  insert into curriculum_node_types (version_id, code, label, depth, is_assessable)
+  values (tests.id('version'), 'objectif', 'Objectif (type fictif de test)', 0, true) returning id)
+select tests.keep('type_obj', t.id) from t;
+with n as (
+  insert into curriculum_nodes (version_id, node_type_id, level_code, label)
+  values (tests.id('version'), tests.id('type_obj'), 'CE2', 'OBJECTIF FICTIF : diviser un nombre') returning id)
+select tests.keep('node_div', n.id) from n;
+with n as (
+  insert into curriculum_nodes (version_id, node_type_id, level_code, label)
+  values (tests.id('version'), tests.id('type_obj'), 'CE1', 'OBJECTIF FICTIF : tables de multiplication') returning id)
+select tests.keep('node_tables', n.id) from n;
+insert into node_prerequisites values (tests.id('node_div'), tests.id('node_tables'));
+
+select tests.login(tests.id('enc1'));
+select tests.fails($$insert into curriculum_nodes (version_id, node_type_id, label)
+                    values (tests.id('version'), tests.id('type_obj'), 'x')$$,
+                   'Un encadreur ne modifie pas le référentiel');
+
+-- =============================================================================
+-- T1. L'administrateur inscrit un élève de CE2
+-- =============================================================================
+select tests.login(tests.id('enc1'));
+select tests.fails($$insert into students (first_name, last_name, birth_date, level_code)
+                    values ('X', 'Y', '2017-01-01', 'CE2')$$,
+                   'T1 : un encadreur ne peut pas inscrire un élève');
+
+select tests.login(tests.id('admin'));
+with s as (
+  insert into students (first_name, last_name, birth_date, level_code, origin_school, origin_class,
+                        initial_difficulties, profile_id, created_by)
+  values ('Eleve1', 'FICTIF', '2017-03-12', 'CE2', 'École fictive', 'CE2 B',
+          'Difficultés en division (fictif)', tests.id('acc1'), tests.id('admin'))
+  returning id)
+select tests.keep('stu1', s.id) from s;
+with s as (
+  insert into students (first_name, last_name, birth_date, level_code, profile_id)
+  values ('Eleve2', 'FICTIF', '2016-05-02', 'CM1', tests.id('acc2')) returning id)
+select tests.keep('stu2', s.id) from s;
+select tests.ok((select code ~ '^TE-\d{4}-\d{4}$' from students where id = tests.id('stu1')),
+                'T1 : élève CE2 inscrit avec identifiant unique TE-AAAA-NNNN');
+
+-- =============================================================================
+-- T2. Création du compte parent et lien validé + consentement
+-- =============================================================================
+insert into student_guardians (student_id, guardian_id, relationship, validated_by, validated_at)
+values (tests.id('stu1'), tests.id('par1'), 'mère', tests.id('admin'), now()),
+       (tests.id('stu2'), tests.id('par2'), 'père', tests.id('admin'), now());
+insert into consents (student_id, guardian_id, kind, text_version, recorded_by)
+values (tests.id('stu1'), tests.id('par1'), 'inscription', 'v1-test', tests.id('admin')),
+       (tests.id('stu1'), tests.id('par1'), 'compte_eleve', 'v1-test', tests.id('admin'));
+
+select tests.login(tests.id('par1'));
+select tests.ok((select count(*) from students) = 1 and
+                (select id from students) = tests.id('stu1'),
+                'T2 : le parent 1 voit uniquement son enfant');
+select tests.login(tests.id('par2'));
+select tests.ok(not exists (select 1 from students where id = tests.id('stu1')),
+                'T2 : le parent 2 ne voit pas l''enfant du parent 1');
+
+-- Lien non validé : aucun accès.
+reset role;
+insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000c3');
+insert into profiles (id, first_name, last_name) values ('00000000-0000-0000-0000-0000000000c3', 'Parent3', 'FICTIF');
+insert into user_roles values ('00000000-0000-0000-0000-0000000000c3', 'parent');
+insert into student_guardians (student_id, guardian_id, relationship)
+values (tests.id('stu1'), '00000000-0000-0000-0000-0000000000c3', 'oncle');
+set role authenticated;
+select tests.login('00000000-0000-0000-0000-0000000000c3');
+select tests.ok((select count(*) from students) = 0, 'T2 : un lien parent NON validé ne donne aucun accès');
+
+-- =============================================================================
+-- T3. Affectation de l'élève à un groupe
+-- =============================================================================
+select tests.login(tests.id('admin'));
+with g as (
+  insert into groups (name, kind, level_code, created_by)
+  values ('Groupe CE2 (test)', 'principal', 'CE2', tests.id('admin')) returning id)
+select tests.keep('grp_ce2', g.id) from g;
+with g as (
+  insert into groups (name, kind, level_code) values ('Groupe CM1 (test)', 'principal', 'CM1') returning id)
+select tests.keep('grp_cm1', g.id) from g;
+insert into group_members (group_id, student_id, added_by) values
+  (tests.id('grp_ce2'), tests.id('stu1'), tests.id('admin')),
+  (tests.id('grp_cm1'), tests.id('stu2'), tests.id('admin'));
+select tests.fails($$insert into group_members (group_id, student_id) values (tests.id('grp_cm1'), tests.id('stu1'))$$,
+                   'T3 : un élève ne peut pas avoir deux groupes principaux');
+
+-- =============================================================================
+-- T4. Affectation d'un encadreur
+-- =============================================================================
+insert into group_staff (group_id, staff_id) values
+  (tests.id('grp_ce2'), tests.id('enc1')),
+  (tests.id('grp_cm1'), tests.id('enc2'));
+update students set referent_staff_id = tests.id('enc1') where id = tests.id('stu1');
+
+select tests.login(tests.id('enc1'));
+select tests.ok((select count(*) from students) = 1, 'T4 : l''encadreur 1 voit son seul élève affecté');
+select tests.login(tests.id('enc2'));
+select tests.ok(not exists (select 1 from students where id = tests.id('stu1')),
+                'T4 : l''encadreur 2 ne voit pas un élève qui ne lui est pas affecté');
+
+-- Séances et conflits d'emploi du temps
+select tests.login(tests.id('coord'));
+with r as (
+  insert into rooms (name, capacity) values ('Salle test', 10) returning id)
+select tests.keep('room', r.id) from r;
+with s as (
+  insert into sessions (title, staff_id, room_id, starts_at, ends_at)
+  values ('Séance CE2 test', tests.id('enc1'), tests.id('room'),
+          '2026-12-01 16:00+00', '2026-12-01 17:30+00') returning id)
+select tests.keep('sess', s.id) from s;
+insert into session_participants (session_id, group_id) values (tests.id('sess'), tests.id('grp_ce2'));
+select tests.fails($$insert into sessions (title, staff_id, online_url, starts_at, ends_at)
+                    values ('Conflit', tests.id('enc1'), 'https://exemple.test', '2026-12-01 17:00+00', '2026-12-01 18:00+00')$$,
+                   'Conflit détecté : encadreur déjà occupé');
+select tests.fails($$insert into sessions (title, staff_id, room_id, starts_at, ends_at)
+                    values ('Conflit salle', tests.id('enc2'), tests.id('room'), '2026-12-01 16:30+00', '2026-12-01 17:00+00')$$,
+                   'Conflit détecté : salle déjà occupée');
+
+select tests.login(tests.id('enc1'));
+insert into attendance (session_id, student_id, status, recorded_by)
+values (tests.id('sess'), tests.id('stu1'), 'present', tests.id('enc1'));
+select tests.login(tests.id('enc2'));
+select tests.fails($$insert into attendance (session_id, student_id, status, recorded_by)
+                    values (tests.id('sess'), tests.id('stu1'), 'absent', tests.id('enc2'))$$,
+                   'Un encadreur ne saisit pas les présences d''une séance qui n''est pas la sienne');
+select tests.login(tests.id('par1'));
+select tests.ok((select status from attendance where student_id = tests.id('stu1')) = 'present',
+                'Le parent voit la présence de son enfant');
+
+-- =============================================================================
+-- T5. L'encadreur publie une leçon (avec exercice et aide wolof)
+-- =============================================================================
+select tests.login(tests.id('enc1'));
+with l as (
+  insert into lessons (title, level_code, content, author_id)
+  values ('Leçon test : la division', 'CE2',
+          '[{"type":"explication","texte":"Contenu fictif de test"}]', tests.id('enc1'))
+  returning id)
+select tests.keep('lesson', l.id) from l;
+insert into lesson_objectives values (tests.id('lesson'), tests.id('node_div'));
+
+with e as (
+  insert into exercises (lesson_id, level_code, kind, prompt, choices, author_id, status)
+  values (tests.id('lesson'), 'CE2', 'qcm', 'Exercice fictif : 12 ÷ 3 = ?',
+          '[{"id":"a","label":"3"},{"id":"b","label":"4"},{"id":"c","label":"5"}]',
+          tests.id('enc1'), 'valide') returning id)
+select tests.keep('ex1', e.id) from e;
+insert into exercise_keys values (tests.id('ex1'), '{"correct":["b"]}', '12 = 3 × 4');
+insert into exercise_objectives values (tests.id('ex1'), tests.id('node_div'));
+
+-- Publication refusée tant que la leçon n'est pas validée.
+select tests.fails($$insert into publications (lesson_id, group_id, published_by)
+                    values (tests.id('lesson'), tests.id('grp_ce2'), tests.id('enc1'))$$,
+                   'T5 : impossible de publier une leçon non validée');
+update lessons set status = 'valide', validated_by = tests.id('enc1'), validated_at = now()
+ where id = tests.id('lesson');
+
+-- Explication wolof : enregistrement humain validé.
+with m as (
+  insert into media (storage_path, mime_type, lang, origin, lesson_id, recorded_by, status, validated_by)
+  values ('audio/test/division-wo.opus', 'audio/ogg', 'wo', 'humain', tests.id('lesson'),
+          tests.id('enc1'), 'valide', tests.id('enc1')) returning id)
+select tests.keep('media_wo', m.id) from m;
+insert into wolof_explanations (lesson_id, target_kind, target_text, media_id, origin, status, author_id, validated_by)
+values (tests.id('lesson'), 'notion', 'la division', tests.id('media_wo'), 'humain', 'valide',
+        tests.id('enc1'), tests.id('enc1'));
+-- Explication générée par IA, non validée : ne doit JAMAIS être visible par l'élève.
+insert into wolof_explanations (lesson_id, target_kind, target_text, text_wo, origin, author_id)
+values (tests.id('lesson'), 'consigne', 'Calcule', 'texte IA non relu (test)', 'ia', tests.id('enc1'));
+
+select tests.login(tests.id('enc2'));
+select tests.fails($$insert into publications (lesson_id, group_id, published_by)
+                    values (tests.id('lesson'), tests.id('grp_ce2'), tests.id('enc2'))$$,
+                   'T5 : un encadreur ne publie pas vers un groupe qui n''est pas le sien');
+
+select tests.login(tests.id('enc1'));
+with p as (
+  insert into publications (lesson_id, group_id, published_by)
+  values (tests.id('lesson'), tests.id('grp_ce2'), tests.id('enc1')) returning id)
+select tests.keep('pub', p.id) from p;
+select tests.ok(true, 'T5 : leçon publiée vers le groupe CE2');
+
+-- =============================================================================
+-- T6. L'élève consulte la leçon
+-- =============================================================================
+select tests.login(tests.id('acc1'));
+select tests.ok((select count(*) from lessons) = 1, 'T6 : l''élève voit la leçon publiée');
+select tests.ok((select count(*) from notifications where kind = 'nouvelle_publication') = 1,
+                'T6 : l''élève a reçu une notification');
+select tests.ok((select count(*) from exercises) = 1, 'T6 : l''élève voit l''exercice de la leçon');
+select tests.ok((select count(*) from exercise_keys) = 0, 'T6 : l''élève ne peut PAS lire le corrigé');
+
+select tests.login(tests.id('acc2'));
+select tests.ok((select count(*) from lessons) = 0, 'T6 : un élève d''un autre groupe ne voit pas la leçon');
+
+-- =============================================================================
+-- T7. L'élève écoute l'explication complémentaire en wolof
+-- =============================================================================
+select tests.login(tests.id('acc1'));
+select tests.ok((select count(*) from wolof_explanations) = 1
+                and (select origin from wolof_explanations) = 'humain',
+                'T7 : l''élève accède à l''explication wolof validée, et pas à celle de l''IA non relue');
+select tests.ok((select storage_path from media where lang = 'wo') is not null,
+                'T7 : l''audio wolof est accessible');
+
+-- =============================================================================
+-- T8. L'élève réalise l'exercice (mauvaise réponse)
+-- =============================================================================
+select tests.fails($$insert into submissions (student_id, exercise_id, answer, auto_score)
+                    values (tests.id('stu1'), tests.id('ex1'), '{"selected":["b"]}', 1)$$,
+                   'T8 : l''élève ne peut pas écrire directement sa note');
+select tests.keep('sub1', submit_answer(tests.id('ex1'), '{"selected":["a"]}',
+                                        '11111111-1111-1111-1111-111111111111', tests.id('pub')));
+select tests.ok(submit_answer(tests.id('ex1'), '{"selected":["a"]}', '11111111-1111-1111-1111-111111111111')
+                = tests.id('sub1'), 'T8 : renvoi hors-ligne du même envoi = pas de doublon');
+select tests.ok((select auto_score from submissions where id = tests.id('sub1')) = 0,
+                'T8 : score automatique calculé côté serveur (0, réponse fausse)');
+
+select tests.login(tests.id('acc2'));
+select tests.fails($$select submit_answer(tests.id('ex1'), '{"selected":["b"]}')$$,
+                   'T8 : un élève ne peut pas répondre à un exercice qui ne lui est pas publié');
+
+-- =============================================================================
+-- T9. L'encadreur corrige
+-- =============================================================================
+select tests.login(tests.id('enc2'));
+select tests.fails($$insert into corrections (submission_id, corrector_id, score, max_score)
+                    values (tests.id('sub1'), tests.id('enc2'), 1, 1)$$,
+                   'T9 : un encadreur non affecté ne peut pas corriger');
+select tests.login(tests.id('enc1'));
+insert into corrections (submission_id, corrector_id, score, max_score, comment)
+values (tests.id('sub1'), tests.id('enc1'), 0, 1, 'Revoir les tables de multiplication (test)');
+select tests.ok((select status from submissions where id = tests.id('sub1')) = 'corrige', 'T9 : copie corrigée');
+
+-- =============================================================================
+-- T10. Le dossier pédagogique est actualisé
+-- =============================================================================
+select tests.ok((select level from current_mastery
+                 where student_id = tests.id('stu1') and node_id = tests.id('node_div')) = 'non_acquis',
+                'T10 : niveau de maîtrise calculé = non acquis');
+update mastery_records set level = 'acquis';   -- aucune politique UPDATE : 0 ligne touchée
+select tests.ok((select level from current_mastery
+                 where student_id = tests.id('stu1') and node_id = tests.id('node_div')) = 'non_acquis',
+                'T10 : un encadreur ne peut pas réécrire l''historique de maîtrise');
+reset role;   -- même un super-administrateur est bloqué par le verrou d'historique
+select tests.fails($$update mastery_records set level = 'acquis'$$,
+                   'T10 : historique de maîtrise verrouillé même pour le super-administrateur');
+set role authenticated;
+select tests.login(tests.id('enc1'));
+
+-- =============================================================================
+-- T11. Le parent consulte les résultats
+-- =============================================================================
+select tests.login(tests.id('par1'));
+select tests.ok((select count(*) from corrections) = 1, 'T11 : le parent voit la correction');
+select tests.ok((select level from current_mastery where node_id = tests.id('node_div')) = 'non_acquis',
+                'T11 : le parent voit le niveau de compétence');
+select tests.login(tests.id('par2'));
+select tests.ok((select count(*) from corrections) = 0 and (select count(*) from mastery_records) = 0,
+                'T11 : le parent 2 ne voit aucun résultat de l''autre enfant');
+
+-- =============================================================================
+-- T12. L'encadreur identifie une difficulté (et ses prérequis)
+-- =============================================================================
+select tests.login(tests.id('enc1'));
+select tests.ok(exists (select 1 from students_at_risk where student_id = tests.id('stu1')),
+                'T12 : l''élève apparaît dans la liste des élèves en difficulté');
+select tests.ok((select count(*) from prerequisite_status(tests.id('stu1'), tests.id('node_div'))
+                 where prerequisite_id = tests.id('node_tables')) = 1,
+                'T12 : le prérequis « tables de multiplication » est remonté pour le diagnostic');
+select tests.login(tests.id('enc2'));
+select tests.ok(not exists (select 1 from students_at_risk), 'T12 : l''encadreur 2 ne voit pas cette alerte');
+
+-- =============================================================================
+-- T13. Une activité de remédiation est proposée puis validée par un humain
+-- =============================================================================
+select tests.login(tests.id('enc1'));
+with p as (
+  insert into remediation_plans (student_id, target_node_id, diagnosis, origin, proposed_by)
+  values (tests.id('stu1'), tests.id('node_div'),
+          'Diagnostic proposé (test) : le blocage vient des tables de multiplication', 'regles', tests.id('enc1'))
+  returning id)
+select tests.keep('plan', p.id) from p;
+select tests.fails($$update remediation_plans set status = 'validee' where id = tests.id('plan')$$,
+                   'T13 : un plan ne peut pas être validé sans validateur humain identifié');
+
+select tests.login(tests.id('par1'));
+select tests.ok((select count(*) from remediation_plans) = 0, 'T13 : le parent ne voit pas un plan seulement proposé');
+
+select tests.login(tests.id('enc1'));
+update remediation_plans set status = 'validee', validated_by = tests.id('enc1'), validated_at = now()
+ where id = tests.id('plan');
+with e as (
+  insert into exercises (level_code, kind, prompt, author_id, status)
+  values ('CE2', 'reponse_courte', 'Exercice fictif de remédiation : 15 ÷ 5 = ?', tests.id('enc1'), 'valide')
+  returning id)
+select tests.keep('ex2', e.id) from e;
+insert into exercise_keys values (tests.id('ex2'), '{"accepted":["3"]}', '15 = 5 × 3');
+insert into exercise_objectives values (tests.id('ex2'), tests.id('node_div'));
+insert into remediation_steps (plan_id, position, node_id, exercise_id)
+values (tests.id('plan'), 1, tests.id('node_div'), tests.id('ex2'));
+insert into publications (exercise_id, student_id, published_by)
+values (tests.id('ex2'), tests.id('stu1'), tests.id('enc1'));
+
+select tests.login(tests.id('par1'));
+select tests.ok((select status from remediation_plans) = 'validee', 'T13 : le parent voit le plan validé');
+
+-- =============================================================================
+-- T14. Résultats après remédiation
+-- =============================================================================
+do $$
+declare i int; v uuid;
+begin
+  for i in 1..4 loop
+    perform tests.login(tests.id('acc1'));
+    v := submit_answer(tests.id('ex2'), '{"text":" 3 "}');
+    perform tests.login(tests.id('enc1'));
+    insert into corrections (submission_id, corrector_id, score, max_score)
+    select v, tests.id('enc1'), auto_score, 1 from submissions where id = v;
+  end loop;
+end $$;
+
+select tests.login(tests.id('par1'));
+select tests.ok((select level from current_mastery where node_id = tests.id('node_div')) = 'acquis',
+                'T14 : après remédiation, la compétence passe à « acquis »');
+select tests.ok((select array_agg(level::text order by seq) from mastery_records)
+                = array['non_acquis', 'en_cours', 'en_cours', 'en_cours', 'acquis'],
+                'T14 : progression historisée non acquis → en cours → acquis');
+
+-- =============================================================================
+-- Messagerie encadrée et traçabilité
+-- =============================================================================
+select tests.login(tests.id('par1'));
+with c as (
+  insert into conversations (student_id, subject, created_by)
+  values (tests.id('stu1'), 'Suivi en division (test)', tests.id('par1')) returning id)
+select tests.keep('conv', c.id) from c;
+insert into conversation_participants values (tests.id('conv'), tests.id('par1')), (tests.id('conv'), tests.id('enc1'));
+select tests.fails($$insert into conversation_participants values (tests.id('conv'), tests.id('enc2'))$$,
+                   'Messagerie : impossible d''ajouter un encadreur non affecté à l''enfant');
+insert into messages (conversation_id, author_id, body) values (tests.id('conv'), tests.id('par1'), 'Bonjour (test)');
+select tests.login(tests.id('par2'));
+select tests.fails($$insert into conversations (student_id, subject, created_by)
+                    values (tests.id('stu1'), 'x', tests.id('par2'))$$,
+                   'Messagerie : un parent ne peut pas ouvrir une conversation sur l''enfant d''un autre');
+select tests.ok((select count(*) from messages) = 0, 'Messagerie : le parent 2 ne lit pas les messages du parent 1');
+select tests.login(tests.id('enc1'));
+select tests.ok((select count(*) from messages) = 1, 'Messagerie : l''encadreur affecté lit le message');
+
+select tests.login(tests.id('enc1'));
+select tests.ok((select count(*) from audit_log) = 0, 'Audit : un encadreur ne lit pas le journal');
+select tests.login(tests.id('admin'));
+select tests.ok((select count(*) from audit_log where table_name = 'students') >= 2
+                and exists (select 1 from audit_log where table_name = 'mastery_records' and actor_id = tests.id('enc1')),
+                'Audit : inscriptions et niveaux de maîtrise tracés, avec leur auteur');
+
+select tests.login(tests.id('acc1'));
+select tests.ok((select count(*) from audit_log) = 0 and (select count(*) from curriculum_sources) = 0,
+                'L''élève ne lit ni le journal ni les sources documentaires');
+
+reset role;
+\echo '=== TOUS LES TESTS SONT PASSÉS ==='
