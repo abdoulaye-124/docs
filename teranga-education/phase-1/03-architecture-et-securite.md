@@ -39,7 +39,7 @@
 | Style | Tailwind CSS | 3.x | Pages légères, adaptées au téléphone |
 | Navigation | React Router | 6.x | Écrans distincts par rôle |
 | Données côté client | TanStack Query + client Supabase | 5.x / 2.x | Cache et rechargement automatiques ; moins d'appels réseau |
-| Formulaires | React Hook Form + Zod | — | Formulaires rapides et contrôlés |
+| Formulaires | Composants maison + contrôles côté base | — | Retenu en Phase 2 : moins de dépendances ; la validation de référence reste dans la base |
 | Hors-ligne | vite-plugin-pwa (Workbox) + Dexie (IndexedDB) | — | Standard du marché pour les PWA |
 | Base et services | Supabase (PostgreSQL 15+) | — | Base, authentification, fichiers et fonctions serveur intégrés ; open source, donc auto-hébergeable |
 | Excel | SheetJS | — | Import et export `.xlsx` |
