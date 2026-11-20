@@ -11,6 +11,7 @@ import { formaterTelephone } from '@shared/identifiants.ts';
 import { Alerte, Bouton, Carte, Case, Cellule, Champ, Chargement, EnTete, Modale, Pastille, Selection, Tableau, Vide, ZoneTexte } from '../../ui/composants';
 import { TEXTES_CONSENTEMENT, VERSION_TEXTES, type TypeConsentement } from './consentements';
 import CompteEleve from './CompteEleve';
+import { ListeResultats, useResultats } from '../eleve/EspaceEleve';
 
 interface LienParent {
   guardian_id: string;
@@ -51,6 +52,7 @@ export default function FicheEleve() {
     queryFn: async () => verifier(await supabase.from('attendance').select('status, reason, session_id, sessions(title, starts_at, ends_at)').eq('student_id', id).order('recorded_at', { ascending: false }).limit(20)),
   });
 
+  const resultats = useResultats(id);
   const [modale, setModale] = useState<null | 'parent' | 'groupe' | 'edition'>(null);
   const rafraichir = () => {
     qc.invalidateQueries({ queryKey: ['eleve', id] });
@@ -132,6 +134,10 @@ export default function FicheEleve() {
         )}
 
         {admin && <CompteEleve eleve={e} consentementCompte={(consentements.data ?? []).some((c) => c.kind === 'compte_eleve' && !c.revoked_at)} onChange={rafraichir} />}
+
+        <Carte titre="Résultats récents" className="lg:col-span-2">
+          <ListeResultats res={resultats} />
+        </Carte>
 
         <Carte titre="Présences récentes" className="lg:col-span-2">
           {!presences.data?.length ? <Vide>Aucune présence enregistrée.</Vide> : (

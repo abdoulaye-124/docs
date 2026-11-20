@@ -466,5 +466,36 @@ select tests.login(tests.id('acc1'));
 select tests.ok((select count(*) from audit_log) = 0 and (select count(*) from curriculum_sources) = 0,
                 'L''élève ne lit ni le journal ni les sources documentaires');
 
+-- =============================================================================
+-- Phase 3 : correction expliquée visible seulement après correction
+-- =============================================================================
+select tests.login(tests.id('acc1'));
+select tests.keep('sub_nc', submit_answer(tests.id('ex1'), '{"selected":["b"]}'));
+select tests.ok(not exists (select 1 from correction_feedback(tests.id('sub_nc'))),
+                'Phase 3 : pas de correction expliquée avant la correction');
+select tests.ok((select explanation from correction_feedback(tests.id('sub1'))) = '12 = 3 × 4',
+                'Phase 3 : l''élève lit la correction expliquée après correction');
+select tests.login(tests.id('par1'));
+select tests.ok((select score from correction_feedback(tests.id('sub1'))) = 0,
+                'Phase 3 : le parent lit le retour de correction de son enfant');
+select tests.login(tests.id('par2'));
+select tests.ok(not exists (select 1 from correction_feedback(tests.id('sub1'))),
+                'Phase 3 : un autre parent ne lit pas le retour de correction');
+select tests.login(tests.id('enc1'));
+update exercise_keys set explanation = '12 = 3 × 4 (corrigé révisé)' where exercise_id = tests.id('ex1');
+select tests.login(tests.id('admin'));
+select tests.ok(exists (select 1 from audit_log where table_name = 'exercise_keys' and action = 'UPDATE'),
+                'Phase 3 : toute modification d''un corrigé est journalisée');
+
+select tests.login(tests.id('coord'));
+select tests.fails($$update curriculum_nodes set is_provisional = false where id = tests.id('node_div')$$,
+                   'RG14 : un objectif sans source authentifiée reste provisoire');
+with s as (insert into curriculum_sources (title, issuer, status, verified_by, verified_at)
+           values ('Guide fictif authentifié (test)', 'Test', 'authentifie', tests.id('coord'), now()) returning id)
+select tests.keep('src_ok', s.id) from s;
+update curriculum_nodes set is_provisional = false, source_id = tests.id('src_ok') where id = tests.id('node_div');
+select tests.ok((select not is_provisional from curriculum_nodes where id = tests.id('node_div')),
+                'RG14 : avec une source authentifiée, l''objectif peut être marqué vérifié');
+
 reset role;
 \echo '=== TOUS LES TESTS SONT PASSÉS ==='

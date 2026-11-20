@@ -1,5 +1,14 @@
 # Journal des évolutions — TERANGA ÉDUCATION
 
+## 2026-11-20 — Phase 3 : module pédagogique (v0.3.0)
+
+- Référentiel : versions, hiérarchie libre, prérequis, sources et authentification ; référentiel provisoire de démonstration (5 objectifs de mathématiques, non officiels).
+- Leçons en blocs, exercices (QCM, réponse courte, production libre) avec correction expliquée, évaluations, publication, file de correction avec notes automatiques proposées.
+- Espace élève : leçons avec lecture audio, exercices et évaluations, résultats. Parent : résultats et corrections expliquées.
+- Migration 4 : `correction_feedback` (correction expliquée visible seulement après correction), audit des corrigés, règle RG14 (pas d'objectif « vérifié » sans source authentifiée).
+- Tests : 58 SQL, 32 unitaires, 10 parcours navigateur (PC et Android).
+- Corrigé : fenêtre modale refermée par erreur lors d'une réouverture rapide ; message de confirmation perdu après redirection.
+
 ## 2026-11-20 — Phase 2 : premier prototype (v0.2.0)
 
 - Application web installable (React 18, TypeScript, Tailwind, PWA) : connexion en 3 modes (personnel, parent par téléphone, élève par code-image), tableaux de bord par rôle, élèves, parents et consentements, personnel, comptes élèves, groupes, séances avec détection des conflits, présences, paramètres.

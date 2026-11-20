@@ -58,7 +58,7 @@ test('Scénario Phase 2 : inscription, parent, groupe, encadreur, séance, prés
   // Paramètres : une salle
   await page.goto('/parametres');
   await page.getByLabel('Nom').fill(j.salle);
-  await page.getByRole('button', { name: 'Ajouter' }).click();
+  await page.getByRole('button', { name: 'Ajouter' }).first().click();
   await expect(page.getByText(j.salle)).toBeVisible();
 
   // Comptes : un encadreur et deux parents

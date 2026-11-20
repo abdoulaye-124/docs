@@ -1,13 +1,14 @@
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { verifier } from '../../lib/requetes';
 import { formatCreneau } from '../../lib/dates';
 import { useSession } from '../../lib/session';
 
-const TUILES = [
-  { icone: '📖', libelle: 'Mes leçons', couleur: 'bg-sky-100 text-sky-900' },
-  { icone: '✏️', libelle: 'Mes exercices', couleur: 'bg-soleil-100 text-soleil-700' },
-  { icone: '⭐', libelle: 'Mes progrès', couleur: 'bg-teranga-100 text-teranga-900' },
+const TUILES: { icone: string; libelle: string; couleur: string; a?: string }[] = [
+  { icone: '📖', libelle: 'Mes leçons', couleur: 'bg-sky-100 text-sky-900', a: '/eleve/lecons' },
+  { icone: '✏️', libelle: 'Mes exercices', couleur: 'bg-soleil-100 text-soleil-700', a: '/eleve/exercices' },
+  { icone: '⭐', libelle: 'Mes résultats', couleur: 'bg-teranga-100 text-teranga-900', a: '/eleve/resultats' },
   { icone: '🙋', libelle: "J'ai besoin d'aide", couleur: 'bg-rose-100 text-rose-900' },
 ];
 
@@ -45,17 +46,13 @@ export default function AccueilEleve() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {TUILES.map((t) => (
-          <button
-            key={t.libelle}
-            onClick={() => lire(`${t.libelle}. Bientôt disponible.`)}
-            className={`flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl text-lg font-bold shadow-sm ${t.couleur}`}
-          >
-            <span aria-hidden className="text-5xl">{t.icone}</span>
-            {t.libelle}
-            <span className="text-xs font-medium opacity-70">Bientôt</span>
-          </button>
-        ))}
+        {TUILES.map((t) => {
+          const style = `flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl text-lg font-bold shadow-sm ${t.couleur}`;
+          const contenu = <><span aria-hidden className="text-5xl">{t.icone}</span>{t.libelle}{!t.a && <span className="text-xs font-medium opacity-70">Bientôt</span>}</>;
+          return t.a
+            ? <Link key={t.libelle} to={t.a} className={style} onClick={() => lire(t.libelle)}>{contenu}</Link>
+            : <button key={t.libelle} onClick={() => lire(`${t.libelle}. Bientôt disponible.`)} className={style}>{contenu}</button>;
+        })}
       </div>
 
       <div className="mt-6 rounded-2xl bg-white p-4 shadow-sm">

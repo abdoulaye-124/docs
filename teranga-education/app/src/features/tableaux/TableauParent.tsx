@@ -45,7 +45,7 @@ export default function TableauParent() {
                 <div><dt className="text-slate-500">Présences</dt><dd className="font-semibold">{p.length ? `${presents} / ${p.length}` : '—'}</dd></div>
                 <div><dt className="text-slate-500">Identifiant</dt><dd className="font-mono">{e.code}</dd></div>
               </dl>
-              <p className="mt-3 text-xs text-slate-500">Résultats et compétences : disponibles prochainement (Phase 3 et 4).</p>
+              <p className="mt-3 text-xs text-slate-500">Résultats des exercices : dans le dossier. Suivi des compétences : Phase 4.</p>
             </Carte>
           );
         })}

@@ -179,16 +179,22 @@ export function Cellule({ children, className }: { children: ReactNode; classNam
 
 export function Modale({ titre, ouverte, fermer, children }: { titre: string; ouverte: boolean; fermer: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // L'événement « close » arrive APRÈS coup : s'il provient d'une fermeture
+  // décidée par l'application, il ne doit pas refermer une fenêtre rouverte entre-temps.
+  const fermetureVoulue = useRef(false);
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
     if (ouverte && !d.open) d.showModal();
-    if (!ouverte && d.open) d.close();
+    if (!ouverte && d.open) { fermetureVoulue.current = true; d.close(); }
   }, [ouverte]);
   return (
     <dialog
       ref={ref}
-      onClose={fermer}
+      onClose={() => {
+        if (fermetureVoulue.current) { fermetureVoulue.current = false; return; }
+        fermer();   // fermeture par l'utilisateur (touche Échap, bouton retour)
+      }}
       aria-label={titre}
       className="w-[calc(100%-2rem)] max-w-lg rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50"
     >

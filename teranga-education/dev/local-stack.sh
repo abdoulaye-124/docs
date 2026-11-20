@@ -130,7 +130,9 @@ case "${1:-}" in
     echo "Pile locale démarrée. Lancer l'application : cd app && npm run dev" ;;
   reset)
     docker rm -f teranga-gotrue teranga-postgrest >/dev/null 2>&1 || true
-    db_create; write_env; start_gotrue; apply_migrations; start_postgrest; start_functions
+    db_create; write_env; start_gotrue; apply_migrations
+    su "$PG_SUPER" -c "psql -q -v ON_ERROR_STOP=1 -d $DB -f $ROOT/supabase/seed/referentiel-provisoire-demo.sql"
+    start_postgrest; start_functions
     node "$HERE/bootstrap-admin.mjs"
     echo "Base réinitialisée." ;;
   down)

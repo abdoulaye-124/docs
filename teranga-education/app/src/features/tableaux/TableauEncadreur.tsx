@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
-import { estActif, useEleves, useGroupes, verifier } from '../../lib/requetes';
+import { useEleves, useGroupes, verifier } from '../../lib/requetes';
 import { aujourdhui, formatCreneau } from '../../lib/dates';
 import { useSession } from '../../lib/session';
 import { nomComplet } from '../../lib/types';
@@ -11,7 +11,6 @@ export default function TableauEncadreur() {
   const { profil } = useSession();
   const eleves = useEleves();
   const groupes = useGroupes();
-  const jour = aujourdhui();
 
   const seances = useQuery({
     queryKey: ['seances', 'encadreur', profil?.id],
@@ -24,19 +23,23 @@ export default function TableauEncadreur() {
       ),
   });
 
+  const aCorriger = useQuery({
+    queryKey: ['corrections', 'compte'],
+    queryFn: async () => (await supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'soumis')).count ?? 0,
+  });
+
   if (eleves.isLoading || groupes.isLoading || seances.isLoading) return <Chargement />;
 
   const maintenant = new Date().toISOString();
   const aVenir = (seances.data ?? []).filter((s) => s.ends_at >= maintenant);
   const appelsManquants = (seances.data ?? []).filter((s) => s.ends_at < maintenant && s.attendance.length === 0);
-  const mesGroupes = (groupes.data ?? []).filter((g) => g.group_staff.some((a) => a.staff_id === profil?.id && estActif(a, jour)));
 
   return (
     <>
       <EnTete titre={`Bonjour ${profil?.first_name ?? ''}`} sousTitre="Votre espace encadreur" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Statistique libelle="Élèves affectés" valeur={eleves.data?.length ?? 0} />
-        <Statistique libelle="Mes groupes" valeur={mesGroupes.length} />
+        <Link to="/corrections" className="block"><Statistique libelle="Copies à corriger" valeur={aCorriger.data ?? '…'} /></Link>
         <Statistique libelle="Séances à venir" valeur={aVenir.length} />
         <Statistique libelle="Appels à saisir" valeur={appelsManquants.length} />
       </div>
@@ -80,7 +83,7 @@ export default function TableauEncadreur() {
               ))}
             </ul>
           )}
-          <p className="mt-3 text-xs text-slate-500">Les leçons, exercices et le suivi des compétences arrivent en Phase 3 et 4.</p>
+          <p className="mt-3 text-xs text-slate-500">Le suivi détaillé des compétences arrive en Phase 4.</p>
         </Carte>
       </div>
     </>

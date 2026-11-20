@@ -4,6 +4,9 @@ import { supabase } from '../../lib/supabase';
 import { useSalles, verifier } from '../../lib/requetes';
 import { messageErreur } from '../../lib/erreurs';
 import { formatDate } from '../../lib/dates';
+import { useMatieres } from '../../lib/pedagogie';
+import { NIVEAUX } from '../../lib/types';
+import { Selection } from '../../ui/composants';
 import { Alerte, Bouton, Carte, Champ, EnTete, Vide } from '../../ui/composants';
 
 export default function Parametres() {
@@ -12,6 +15,13 @@ export default function Parametres() {
   const annees = useQuery({
     queryKey: ['annees'],
     queryFn: async () => verifier(await supabase.from('school_years').select('*').order('starts_on', { ascending: false })),
+  });
+  const matieres = useMatieres();
+  const [matiere, setMatiere] = useState({ name: '', level_code: '' });
+  const ajoutMatiere = useMutation({
+    mutationFn: async () => verifier(await supabase.from('subjects').insert({ name: matiere.name, level_code: matiere.level_code || null })),
+    onSuccess: () => { setMatiere({ name: '', level_code: '' }); setErreur(null); qc.invalidateQueries({ queryKey: ['matieres'] }); },
+    onError: (e) => setErreur(messageErreur(e)),
   });
   const [salle, setSalle] = useState({ name: '', capacity: '' });
   const [erreur, setErreur] = useState<string | null>(null);
@@ -48,7 +58,21 @@ export default function Parametres() {
               ))}
             </ul>
           )}
-          <p className="mt-3 text-xs text-slate-500">Matières et référentiel : Phase 3, à partir des documents officiels authentifiés.</p>
+        </Carte>
+        <Carte titre="Matières" className="lg:col-span-2">
+          <form onSubmit={(e) => { e.preventDefault(); ajoutMatiere.mutate(); }} className="mb-4 grid grid-cols-[1fr_140px_auto] items-end gap-2">
+            <Champ label="Matière" value={matiere.name} onChange={(e) => setMatiere({ ...matiere, name: e.target.value })} required />
+            <Selection label="Niveau" value={matiere.level_code} onChange={(e) => setMatiere({ ...matiere, level_code: e.target.value })}>
+              <option value="">Tous</option>{NIVEAUX.map((n) => <option key={n}>{n}</option>)}
+            </Selection>
+            <Bouton type="submit" chargement={ajoutMatiere.isPending}>Ajouter</Bouton>
+          </form>
+          {!matieres.data?.length ? <Vide>Aucune matière.</Vide> : (
+            <ul className="flex flex-wrap gap-2 text-sm">
+              {matieres.data.map((m) => <li key={m.id} className="rounded-full border border-slate-200 px-3 py-1">{m.name}{m.level_code ? ` · ${m.level_code}` : ''}</li>)}
+            </ul>
+          )}
+          <p className="mt-3 text-xs text-slate-500">Les matières doivent correspondre aux disciplines des référentiels officiels de chaque niveau.</p>
         </Carte>
       </div>
     </>
