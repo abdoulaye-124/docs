@@ -497,5 +497,75 @@ update curriculum_nodes set is_provisional = false, source_id = tests.id('src_ok
 select tests.ok((select not is_provisional from curriculum_nodes where id = tests.id('node_div')),
                 'RG14 : avec une source authentifiée, l''objectif peut être marqué vérifié');
 
+-- =============================================================================
+-- Phase 4 : suivi et remédiation
+-- =============================================================================
+select tests.login(tests.id('enc1'));
+update remediation_plans set status = 'terminee', closed_at = now() where id = tests.id('plan');
+select tests.ok((select level_before = 'non_acquis' and level_now = 'acquis' from remediation_outcome(tests.id('plan'))),
+                'Phase 4 : mesure avant / après du premier programme (non acquis → acquis)');
+
+-- Un exercice validé sur le prérequis « tables »
+with e as (insert into exercises (level_code, kind, prompt, author_id, status)
+           values ('CE1', 'reponse_courte', 'Exercice fictif : 3 × 4 = ?', tests.id('enc1'), 'valide') returning id)
+select tests.keep('ex_tables', e.id) from e;
+insert into exercise_keys values (tests.id('ex_tables'), '{"accepted":["12"]}', '3 × 4 = 12');
+insert into exercise_objectives values (tests.id('ex_tables'), tests.id('node_tables'));
+
+select tests.login(tests.id('enc2'));
+select tests.fails($$select propose_remediation(tests.id('stu1'), tests.id('node_div'))$$,
+                   'Phase 4 : un encadreur non affecté ne peut pas proposer de remédiation');
+
+select tests.login(tests.id('enc1'));
+select tests.keep('plan2', propose_remediation(tests.id('stu1'), tests.id('node_div')));
+select tests.ok((select status = 'proposee' and origin = 'regles' from remediation_plans where id = tests.id('plan2')),
+                'Phase 4 : programme proposé par les règles, en attente de validation');
+select tests.ok((select node_id from remediation_steps where plan_id = tests.id('plan2') and position = 1) = tests.id('node_tables'),
+                'Phase 4 : la première étape travaille le prérequis non évalué (tables)');
+select tests.ok((select count(*) from remediation_steps where plan_id = tests.id('plan2') and node_id = tests.id('node_div')) >= 2,
+                'Phase 4 : le programme reprend ensuite l''objectif visé');
+select tests.ok((select diagnosis like '%tables de multiplication%jamais évalué%' from remediation_plans where id = tests.id('plan2')),
+                'Phase 4 : le diagnostic explique le prérequis repéré');
+select tests.fails($$select propose_remediation(tests.id('stu1'), tests.id('node_div'))$$,
+                   'Phase 4 : pas deux programmes ouverts sur le même objectif');
+select tests.fails($$select start_remediation(tests.id('plan2'))$$,
+                   'Phase 4 : impossible de lancer un programme non validé');
+
+update remediation_plans set status = 'validee', validated_by = tests.id('enc1'), validated_at = now() where id = tests.id('plan2');
+select tests.ok(start_remediation(tests.id('plan2')) >= 1, 'Phase 4 : lancement = exercices publiés à l''élève');
+
+select tests.login(tests.id('par1'));
+select tests.ok(exists (select 1 from notifications where kind = 'remediation'),
+                'Phase 4 : le parent est informé du programme validé');
+
+select tests.login(tests.id('acc1'));
+select submit_answer(tests.id('ex_tables'), '{"text":"12"}');
+select tests.login(tests.id('enc1'));
+select tests.ok((select steps_done = 1 from remediation_outcome(tests.id('plan2'))),
+                'Phase 4 : l''étape est cochée dès que l''élève rend l''exercice');
+
+-- Bilan périodique
+with r as (insert into reports (student_id, period_start, period_end, body, author_id)
+           values (tests.id('stu1'), '2026-11-01', '2026-11-30', '{"synthese":"Bilan fictif"}', tests.id('enc1')) returning id)
+select tests.keep('bilan', r.id) from r;
+select tests.login(tests.id('par1'));
+select tests.ok((select count(*) from reports) = 0, 'Phase 4 : un bilan en brouillon est invisible pour le parent');
+select tests.login(tests.id('enc1'));
+update reports set status = 'envoye' where id = tests.id('bilan');
+select tests.login(tests.id('par1'));
+select tests.ok((select count(*) from reports) = 1 and exists (select 1 from notifications where kind = 'bilan'),
+                'Phase 4 : le bilan envoyé est visible et notifié au parent');
+select tests.login(tests.id('par2'));
+select tests.ok((select count(*) from reports) = 0, 'Phase 4 : un autre parent ne voit pas le bilan');
+select tests.login(tests.id('enc1'));
+select tests.fails($$update reports set body = '{"synthese":"modifié"}' where id = tests.id('bilan')$$,
+                   'Phase 4 : un bilan envoyé est figé');
+insert into reports (student_id, period_start, period_end, body, status, author_id)
+values (tests.id('stu1'), '2026-12-01', '2026-12-31', '{"synthese":"Envoi direct"}', 'envoye', tests.id('enc1'));
+select tests.login(tests.id('par1'));
+select tests.ok((select count(*) from notifications where kind = 'bilan') = 2
+                and (select bool_and(sent_at is not null) from reports),
+                'Phase 4 : un bilan envoyé directement est daté et notifié');
+
 reset role;
 \echo '=== TOUS LES TESTS SONT PASSÉS ==='

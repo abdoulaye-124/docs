@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useEleves, verifier } from '../../lib/requetes';
-import { formatCreneau } from '../../lib/dates';
+import { formatCreneau, formatDate } from '../../lib/dates';
 import { useSession } from '../../lib/session';
 import { nomComplet } from '../../lib/types';
 import { Carte, Chargement, EnTete, Pastille, Vide } from '../../ui/composants';
@@ -26,6 +26,12 @@ export default function TableauParent() {
       verifier(await supabase.from('attendance').select('student_id, status, sessions(title, starts_at, ends_at)').order('recorded_at', { ascending: false }).limit(50)),
   });
 
+  const notifs = useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => verifier(await supabase.from('notifications').select('id, title, link, created_at, read_at').order('created_at', { ascending: false }).limit(8)) as
+      { id: string; title: string; link: string | null; created_at: string; read_at: string | null }[],
+  });
+
   if (enfants.isLoading) return <Chargement />;
 
   return (
@@ -45,11 +51,24 @@ export default function TableauParent() {
                 <div><dt className="text-slate-500">Présences</dt><dd className="font-semibold">{p.length ? `${presents} / ${p.length}` : '—'}</dd></div>
                 <div><dt className="text-slate-500">Identifiant</dt><dd className="font-mono">{e.code}</dd></div>
               </dl>
-              <p className="mt-3 text-xs text-slate-500">Résultats des exercices : dans le dossier. Suivi des compétences : Phase 4.</p>
+              <Link to={`/parent/enfant/${e.id}/suivi`} className="mt-3 inline-flex min-h-[44px] items-center font-semibold text-teranga-800">📈 Compétences, bilans et remédiation →</Link>
             </Carte>
           );
         })}
       </div>
+
+      <Carte titre="Notifications" className="mt-5">
+        {!notifs.data?.length ? <Vide>Aucune notification.</Vide> : (
+          <ul className="divide-y divide-slate-100" data-testid="notifications">
+            {notifs.data.map((n) => (
+              <li key={n.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                <span className={n.read_at ? '' : 'font-semibold'}>{n.title}</span>
+                <span className="whitespace-nowrap text-xs text-slate-500">{formatDate(n.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Carte>
 
       <Carte titre="Prochaines séances" className="mt-5">
         {!seances.data?.length ? <Vide>Aucune séance programmée.</Vide> : (

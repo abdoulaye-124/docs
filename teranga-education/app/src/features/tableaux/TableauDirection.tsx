@@ -35,6 +35,17 @@ export default function TableauDirection() {
     queryFn: async () => verifier(await supabase.from('student_guardians').select('student_id, validated_at')),
   });
 
+  const suivi = useQuery({
+    queryKey: ['alertes', 'compte'],
+    queryFn: async () => {
+      const [r, p] = await Promise.all([
+        supabase.from('current_mastery').select('student_id').eq('level', 'non_acquis'),
+        supabase.from('remediation_plans').select('id', { count: 'exact', head: true }).in('status', ['validee', 'en_cours']),
+      ]);
+      return { enDifficulte: new Set((verifier(r) as { student_id: string }[]).map((x) => x.student_id)).size, remediations: p.count ?? 0 };
+    },
+  });
+
   if (eleves.isLoading || profils.isLoading || groupes.isLoading) return <Chargement />;
 
   const actifs = (eleves.data ?? []).filter((e) => e.is_active);
@@ -93,6 +104,10 @@ export default function TableauDirection() {
             </ul>
           )}
           <p className="mt-3 text-xs text-slate-500">{parents.length} compte(s) parent · {groupes.data?.length ?? 0} groupe(s)</p>
+        </Carte>
+
+        <Carte titre="Suivi pédagogique" className="lg:col-span-2" actions={<Link to="/suivi" className="text-sm font-semibold text-teranga-800">Élèves en difficulté →</Link>}>
+          <p className="text-sm"><strong data-testid="nb-difficulte">{suivi.data?.enDifficulte ?? '…'}</strong> élève(s) avec au moins un objectif non acquis · <strong>{suivi.data?.remediations ?? '…'}</strong> programme(s) de remédiation en cours</p>
         </Carte>
 
         <Carte titre="Séances des 7 prochains jours" className="lg:col-span-2" actions={<Link to="/seances" className="text-sm font-semibold text-teranga-800">Toutes les séances →</Link>}>

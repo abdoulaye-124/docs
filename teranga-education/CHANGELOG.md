@@ -1,6 +1,15 @@
 # Journal des évolutions — TERANGA ÉDUCATION
 
-## 2026-11-20 — Phase 3 : module pédagogique (v0.3.0)
+## 2026-11-20 — Phase 4 : suivi et remédiation (v0.4.0)
+
+- Dossier pédagogique : synthèse au départ / maintenant, tableau de progression (frise, tendance), ajustement justifié du niveau, observations internes ou partagées, bilans (pré-remplis, envoyés, figés, imprimables).
+- Élèves en difficulté, diagnostic par les prérequis, programmes de remédiation proposés par règles, modifiables, validés par l'encadreur, lancés, suivis et clôturés avec mesure avant / après.
+- Notifications aux familles (programme validé, bilan envoyé) ; étoiles de progrès pour l'élève.
+- Migration 5 : `propose_remediation`, `start_remediation`, `remediation_outcome`, étapes cochées automatiquement, notifications, gel des bilans envoyés.
+- Tests : 74 SQL, 38 unitaires, 12 parcours navigateur (PC et Android).
+- Corrigé : sélection des exercices de remédiation, exercice republié non reproposé, bilan envoyé directement non notifié.
+
+## 2026-11-20 — Phase 3 : module pédagogique (v0.3.0) — validée par le promoteur
 
 - Référentiel : versions, hiérarchie libre, prérequis, sources et authentification ; référentiel provisoire de démonstration (5 objectifs de mathématiques, non officiels).
 - Leçons en blocs, exercices (QCM, réponse courte, production libre) avec correction expliquée, évaluations, publication, file de correction avec notes automatiques proposées.

@@ -28,6 +28,11 @@ export default function TableauEncadreur() {
     queryFn: async () => (await supabase.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'soumis')).count ?? 0,
   });
 
+  const alertes = useQuery({
+    queryKey: ['alertes', 'compte-encadreur'],
+    queryFn: async () => (await supabase.from('current_mastery').select('student_id', { count: 'exact', head: true }).eq('level', 'non_acquis')).count ?? 0,
+  });
+
   if (eleves.isLoading || groupes.isLoading || seances.isLoading) return <Chargement />;
 
   const maintenant = new Date().toISOString();
@@ -40,7 +45,7 @@ export default function TableauEncadreur() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Statistique libelle="Élèves affectés" valeur={eleves.data?.length ?? 0} />
         <Link to="/corrections" className="block"><Statistique libelle="Copies à corriger" valeur={aCorriger.data ?? '…'} /></Link>
-        <Statistique libelle="Séances à venir" valeur={aVenir.length} />
+        <Link to="/suivi" className="block"><Statistique libelle="Objectifs en alerte" valeur={alertes.data ?? '…'} detail="non acquis" /></Link>
         <Statistique libelle="Appels à saisir" valeur={appelsManquants.length} />
       </div>
 

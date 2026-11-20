@@ -9,8 +9,9 @@ Plateforme de gestion d'un centre d'accompagnement, de remédiation et de réuss
 | 0 | Étude documentaire | ✅ Validée par le promoteur |
 | 1 | Cahier des charges et architecture | ✅ Validée par le promoteur |
 | 2 | Premier prototype (comptes, élèves, parents, groupes, séances) | ✅ Validé par le promoteur |
-| 3 | Module pédagogique (référentiel, leçons, exercices, évaluations, corrections) | ✅ Livré, en attente de validation |
-| 4 à 7 | Suivi et remédiation, wolof, IA, tests et déploiement | À venir |
+| 3 | Module pédagogique (référentiel, leçons, exercices, évaluations, corrections) | ✅ Validé par le promoteur |
+| 4 | Suivi et remédiation (dossier, progression, diagnostic, programmes, bilans) | ✅ Livré, en attente de validation |
+| 5 à 7 | Wolof, IA, tests et déploiement | À venir |
 
 ## Documents
 
@@ -20,6 +21,7 @@ Plateforme de gestion d'un centre d'accompagnement, de remédiation et de réuss
 - [Phase 1.3 : architecture technique et sécurité](phase-1/03-architecture-et-securite.md)
 - [Phase 2 : premier prototype](phase-2/README.md)
 - [Phase 3 : module pédagogique](phase-3/README.md)
+- [Phase 4 : suivi et remédiation](phase-4/README.md)
 - [Journal des évolutions](CHANGELOG.md)
 
 ## Code
@@ -33,7 +35,7 @@ Plateforme de gestion d'un centre d'accompagnement, de remédiation et de réuss
 
 - `supabase/migrations/` : schéma (54 tables), règles de sécurité (RLS) et évolutions.
 - `supabase/seed/` : référentiel **provisoire, non officiel** de démonstration.
-- `supabase/tests/` : tests du scénario de validation et des droits d'accès (58 vérifications).
+- `supabase/tests/` : tests du scénario de validation et des droits d'accès (74 vérifications).
 
 ```bash
 cd supabase && ./tests/run_tests.sh   # PostgreSQL 15+ local requis

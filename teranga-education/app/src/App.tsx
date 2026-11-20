@@ -23,6 +23,8 @@ import ListeLecons from './features/lecons/ListeLecons';
 import EditeurLecon from './features/lecons/EditeurLecon';
 import { EditeurEvaluation, ListeEvaluations } from './features/evaluations/Evaluations';
 import Corrections from './features/corrections/Corrections';
+import DossierPedagogique from './features/suivi/DossierPedagogique';
+import { Diagnostic, ElevesEnDifficulte, FicheRemediation, ListeRemediations } from './features/suivi/Remediation';
 import { EvaluationEleve, Exercer, LeconEleve, MesExercices, MesLecons, MesResultats } from './features/eleve/EspaceEleve';
 
 const DIRECTION: Role[] = ['admin', 'coordinateur'];
@@ -66,6 +68,12 @@ export default function App() {
         <Route path="/evaluations" element={<Protege roles={PERSONNEL}><ListeEvaluations /></Protege>} />
         <Route path="/evaluations/:id" element={<Protege roles={PERSONNEL}><EditeurEvaluation /></Protege>} />
         <Route path="/corrections" element={<Protege roles={PERSONNEL}><Corrections /></Protege>} />
+        <Route path="/eleves/:id/suivi" element={<Protege roles={PERSONNEL}><DossierPedagogique /></Protege>} />
+        <Route path="/parent/enfant/:id/suivi" element={<Protege roles={['parent']}><DossierPedagogique /></Protege>} />
+        <Route path="/suivi" element={<Protege roles={PERSONNEL}><ElevesEnDifficulte /></Protege>} />
+        <Route path="/suivi/diagnostic/:eleve/:noeud" element={<Protege roles={PERSONNEL}><Diagnostic /></Protege>} />
+        <Route path="/remediation" element={<Protege roles={PERSONNEL}><ListeRemediations /></Protege>} />
+        <Route path="/remediation/:id" element={<Protege roles={PERSONNEL}><FicheRemediation /></Protege>} />
         <Route path="/eleve/lecons" element={<Protege roles={['eleve']}><MesLecons /></Protege>} />
         <Route path="/eleve/lecons/:id" element={<Protege roles={['eleve']}><LeconEleve /></Protege>} />
         <Route path="/eleve/exercices" element={<Protege roles={['eleve']}><MesExercices /></Protege>} />

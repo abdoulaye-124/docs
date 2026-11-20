@@ -5,7 +5,8 @@ import { supabase } from '../../lib/supabase';
 import { verifier } from '../../lib/requetes';
 import { messageErreur } from '../../lib/erreurs';
 import { formatDate } from '../../lib/dates';
-import { ICONES_BLOC, LIBELLES_BLOC, type Exercice } from '../../lib/pedagogie';
+import { ICONES_BLOC, LIBELLES_BLOC, useReferentiel, type Exercice } from '../../lib/pedagogie';
+import { etoiles, type Maitrise } from '../../lib/suivi-regles';
 import { Alerte, Bouton, Chargement, Vide } from '../../ui/composants';
 import { lireAVoixHaute, useTravailEleve } from './donnees';
 
@@ -85,8 +86,13 @@ export function MesExercices() {
   if (t.isLoading) return <Chargement />;
   const d = t.data!;
   const fait = (exId: string, evId: string | null = null) => d.copies.some((c) => c.exercise_id === exId && c.assessment_id === evId);
-  const aFaire = d.exercices.filter((e) => !fait(e.id));
-  const dejaFaits = d.exercices.filter((e) => fait(e.id));
+  // Un exercice republié (ex. programme de remédiation) redevient « à faire ».
+  const derniereDemande = (e: Exercice) => d.publications
+    .filter((p) => p.exercise_id === e.id || (e.lesson_id && p.lesson_id === e.lesson_id))
+    .reduce((m, p) => (p.published_at > m ? p.published_at : m), '');
+  const faitDepuis = (e: Exercice) => d.copies.some((c) => c.exercise_id === e.id && !c.assessment_id && c.submitted_at >= derniereDemande(e));
+  const aFaire = d.exercices.filter((e) => !faitDepuis(e));
+  const dejaFaits = d.exercices.filter((e) => faitDepuis(e));
   const evals = d.evaluations.map((e) => ({ ...e, terminee: e.assessment_items.every((i) => fait(i.exercise_id, e.id)) }));
   const echeance = (pid: { lesson_id: string | null; exercise_id: string | null }) =>
     d.publications.find((p) => (pid.lesson_id && p.lesson_id === pid.lesson_id) || (pid.exercise_id && p.exercise_id === pid.exercise_id))?.due_at;
@@ -189,7 +195,7 @@ export function Exercer() {
   if (t.isLoading) return <Chargement />;
   const e = t.data?.exercices.find((x) => x.id === id);
   if (!e) return <div className="mx-auto max-w-xl"><Retour a="/eleve/exercices" texte="Mes exercices" /><Alerte>Exercice introuvable.</Alerte></div>;
-  const suivants = (t.data?.exercices ?? []).filter((x) => x.id !== id && x.lesson_id === e.lesson_id &&
+  const suivants = (t.data?.exercices ?? []).filter((x) => x.id !== id && x.lesson_id === e.lesson_id && x.lesson_id !== null &&
     !t.data!.copies.some((c) => c.exercise_id === x.id));
 
   return (
@@ -247,12 +253,36 @@ export function EvaluationEleve() {
 }
 
 // ----------------------------------------------------------------------------- Mes résultats
+function MesProgres() {
+  const ref = useReferentiel();
+  const m = useQuery({
+    queryKey: ['mes-progres'],
+    queryFn: async () => verifier(await supabase.from('current_mastery').select('node_id, level')) as { node_id: string; level: Maitrise }[],
+  });
+  if (!m.data?.length) return null;
+  return (
+    <section className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
+      <h2 className="mb-2 text-lg font-bold">Mes progrès</h2>
+      <ul className="space-y-2">
+        {m.data.map((x) => (
+          <li key={x.node_id} className="flex items-center justify-between gap-3" data-testid="progres">
+            <span>{ref.data?.noeuds.find((n) => n.id === x.node_id)?.label}</span>
+            <span aria-label={`${etoiles(x.level)} étoile(s) sur 3`} className="whitespace-nowrap text-xl">{'⭐'.repeat(etoiles(x.level))}<span className="opacity-25">{'⭐'.repeat(3 - etoiles(x.level))}</span></span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-slate-500">3 étoiles : c’est acquis ! Continue tes exercices pour gagner des étoiles.</p>
+    </section>
+  );
+}
+
 export function MesResultats() {
   const res = useResultats();
   return (
     <div className="mx-auto max-w-xl">
       <Retour />
       <h1 className="mb-4 text-2xl font-bold">⭐ Mes résultats</h1>
+      <MesProgres />
       <ListeResultats res={res} pourEleve />
     </div>
   );

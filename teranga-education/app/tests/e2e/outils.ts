@@ -14,7 +14,7 @@ const ANON = env.SUPABASE_ANON_KEY;
 export const ADMIN = { id: 'admin@demo.teranga.invalid', mdp: 'Admin-demo-2026' };
 export const NOMS_IMAGES = ['mangue', 'poisson', 'ballon', 'arbre', 'chèvre', 'soleil', 'lune', 'car', 'maison', 'coq', 'tam-tam', 'étoile'];
 
-async function jeton(identifiants: Record<string, string>) {
+export async function jeton(identifiants: Record<string, string>) {
   const r = await fetch(`${G}/auth/v1/token?grant_type=password`, {
     method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json' }, body: JSON.stringify(identifiants),
   });
@@ -23,7 +23,7 @@ async function jeton(identifiants: Record<string, string>) {
   return j.access_token as string;
 }
 
-class Api {
+export class Api {
   constructor(private t: string) {}
   private h(extra: Record<string, string> = {}) {
     return { apikey: ANON, Authorization: `Bearer ${this.t}`, 'Content-Type': 'application/json', ...extra };
@@ -34,6 +34,18 @@ class Api {
     if (!r.ok) throw new Error(`${table} : ${JSON.stringify(j)}`);
     return (Array.isArray(j) ? j[0] : j) as T;
   }
+  async lire<T = unknown>(chemin: string): Promise<T> {
+    const r = await fetch(`${G}/rest/v1/${chemin}`, { headers: this.h() });
+    const j = await r.json();
+    if (!r.ok) throw new Error(`${chemin} : ${JSON.stringify(j)}`);
+    return j as T;
+  }
+  async rpc<T = unknown>(fn: string, args: object): Promise<T> {
+    const r = await fetch(`${G}/rest/v1/rpc/${fn}`, { method: 'POST', headers: this.h(), body: JSON.stringify(args) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(`${fn} : ${JSON.stringify(j)}`);
+    return j as T;
+  }
   async compte(c: Record<string, unknown>): Promise<string> {
     const r = await fetch(`${G}/functions/v1/admin-users`, { method: 'POST', headers: this.h(), body: JSON.stringify({ action: 'create', ...c }) });
     const j = await r.json();
@@ -43,13 +55,13 @@ class Api {
 }
 
 /** Centre minimal : encadreur, 2 parents, 1 élève CE2 avec compte, groupe CE2. */
-export async function preparerCentre(suffixe: string, n: number) {
+export async function preparerCentre(suffixe: string, n: number, prefixe = '76') {
   const adminId = (await (await fetch(`${G}/auth/v1/user`, { headers: { apikey: ANON, Authorization: `Bearer ${await jeton({ email: ADMIN.id, password: ADMIN.mdp })}` } })).json()).id;
   const api = new Api(await jeton({ email: ADMIN.id, password: ADMIN.mdp }));
   const c = {
-    encadreur: { tel: `76 000 10 0${n}`, mdp: `Encadreur-${suffixe}-2026`, prenom: 'Fatou' },
-    parent: { tel: `76 000 20 0${n}`, mdp: `Parent-${suffixe}-2026`, prenom: 'Mariama' },
-    autreParent: { tel: `76 000 30 0${n}`, mdp: `Autre-${suffixe}-2026` },
+    encadreur: { tel: `${prefixe} 000 10 0${n}`, mdp: `Encadreur-${suffixe}-2026`, prenom: 'Fatou' },
+    parent: { tel: `${prefixe} 000 20 0${n}`, mdp: `Parent-${suffixe}-2026`, prenom: 'Mariama' },
+    autreParent: { tel: `${prefixe} 000 30 0${n}`, mdp: `Autre-${suffixe}-2026` },
     eleve: { login: `moussa.${suffixe.toLowerCase()}`, code: [3, 7, 0, 11], prenom: 'Moussa', nom: `ELEVE3-${suffixe}` },
     groupe: `CE2 Phase 3 ${suffixe}`,
   };
@@ -66,7 +78,7 @@ export async function preparerCentre(suffixe: string, n: number) {
   const g = await api.inserer('groups', { name: c.groupe, kind: 'principal', level_code: 'CE2' });
   await api.inserer('group_members', { group_id: g.id, student_id: el.id });
   await api.inserer('group_staff', { group_id: g.id, staff_id: enc });
-  return { ...c, eleveId: el.id };
+  return { ...c, eleveId: el.id, groupeId: g.id, encadreurId: enc };
 }
 
 export async function connexion(page: Page, onglet: 'Personnel' | 'Parent', identifiant: string, mdp: string) {

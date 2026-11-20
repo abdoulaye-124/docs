@@ -76,7 +76,10 @@ export default function FicheEleve() {
       <EnTete
         titre={nomComplet(e)}
         sousTitre={<span className="flex flex-wrap items-center gap-2"><span className="font-mono">{e.code}</span><Pastille ton="vert">{e.level_code}</Pastille>{!e.is_active && <Pastille>archivé</Pastille>}</span>}
-        actions={direction && <Bouton variante="secondaire" onClick={() => setModale('edition')}>Modifier</Bouton>}
+        actions={<>
+          <Link to={famille ? `/parent/enfant/${id}/suivi` : `/eleves/${id}/suivi`} className="inline-flex min-h-[44px] items-center rounded-lg bg-teranga-700 px-4 text-sm font-semibold text-white">📈 Dossier pédagogique</Link>
+          {direction && <Bouton variante="secondaire" onClick={() => setModale('edition')}>Modifier</Bouton>}
+        </>}
       />
       {params.get('nouveau') && (
         <div className="mb-4"><Alerte ton="succes">Élève inscrit. Associez maintenant un parent et affectez l'élève à un groupe.</Alerte></div>
