@@ -8,7 +8,7 @@ Plateforme de gestion d'un centre d'accompagnement, de remédiation et de réuss
 |---|---|---|
 | 0 | Étude documentaire | ✅ Validée par le promoteur |
 | 1 | Cahier des charges et architecture | ✅ Validée par le promoteur |
-| 2 | Premier prototype (comptes, élèves, parents, groupes, séances) | ✅ Livré, en attente de validation |
+| 2 | Premier prototype (comptes, élèves, parents, groupes, séances) | ✅ Validé par le promoteur |
 | 3 à 7 | Pédagogie, suivi, wolof, IA, tests et déploiement | À venir |
 
 ## Documents

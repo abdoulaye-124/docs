@@ -8,6 +8,7 @@
 - Environnement local identique à Supabase (PostgreSQL, GoTrue, PostgREST, passerelle Deno).
 - Tests : 24 tests unitaires, 8 parcours navigateur (PC et Android), 51 tests SQL ; intégration continue GitHub Actions (SQL, types, tests unitaires, compilation).
 - Corrigé : redémarrage incomplet de la passerelle locale ; tableau des présences tronqué.
+- Validée par le promoteur.
 
 ## 2026-11-20 — Phase 1 : cahier des charges et architecture
 
