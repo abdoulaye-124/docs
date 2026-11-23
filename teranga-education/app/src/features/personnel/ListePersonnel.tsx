@@ -9,7 +9,7 @@ import { formaterTelephone } from '@shared/identifiants.ts';
 import { Alerte, Bouton, Cellule, Chargement, EnTete, Modale, Pastille, Tableau, Vide } from '../../ui/composants';
 import FormCompte from './FormCompte';
 
-const ROLES_PERSONNEL: Role[] = ['encadreur', 'coordinateur', 'admin'];
+const ROLES_PERSONNEL: Role[] = ['encadreur', 'coordinateur', 'relecteur_wolof', 'admin'];
 
 export default function ListePersonnel() {
   const { roleActif, profil } = useSession();

@@ -24,6 +24,7 @@ import EditeurLecon from './features/lecons/EditeurLecon';
 import { EditeurEvaluation, ListeEvaluations } from './features/evaluations/Evaluations';
 import Corrections from './features/corrections/Corrections';
 import DossierPedagogique from './features/suivi/DossierPedagogique';
+import { RelectureWolof } from './features/wolof/Wolof';
 import { Diagnostic, ElevesEnDifficulte, FicheRemediation, ListeRemediations } from './features/suivi/Remediation';
 import { EvaluationEleve, Exercer, LeconEleve, MesExercices, MesLecons, MesResultats } from './features/eleve/EspaceEleve';
 
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/suivi/diagnostic/:eleve/:noeud" element={<Protege roles={PERSONNEL}><Diagnostic /></Protege>} />
         <Route path="/remediation" element={<Protege roles={PERSONNEL}><ListeRemediations /></Protege>} />
         <Route path="/remediation/:id" element={<Protege roles={PERSONNEL}><FicheRemediation /></Protege>} />
+        <Route path="/wolof" element={<Protege roles={['admin', 'coordinateur', 'relecteur_wolof']}><RelectureWolof /></Protege>} />
         <Route path="/eleve/lecons" element={<Protege roles={['eleve']}><MesLecons /></Protege>} />
         <Route path="/eleve/lecons/:id" element={<Protege roles={['eleve']}><LeconEleve /></Protege>} />
         <Route path="/eleve/exercices" element={<Protege roles={['eleve']}><MesExercices /></Protege>} />

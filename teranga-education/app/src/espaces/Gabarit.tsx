@@ -17,6 +17,7 @@ const MENUS: Record<Role, Lien[]> = {
     { a: '/corrections', libelle: 'Corrections', icone: '✅' },
     { a: '/suivi', libelle: 'Suivi', icone: '📈' },
     { a: '/referentiel', libelle: 'Référentiel', icone: '🗂️' },
+    { a: '/wolof', libelle: 'Relecture wolof', icone: '🗣' },
     { a: '/parametres', libelle: 'Paramètres', icone: '⚙️' },
   ],
   coordinateur: [
@@ -31,6 +32,7 @@ const MENUS: Record<Role, Lien[]> = {
     { a: '/corrections', libelle: 'Corrections', icone: '✅' },
     { a: '/suivi', libelle: 'Suivi', icone: '📈' },
     { a: '/referentiel', libelle: 'Référentiel', icone: '🗂️' },
+    { a: '/wolof', libelle: 'Relecture wolof', icone: '🗣' },
     { a: '/parametres', libelle: 'Paramètres', icone: '⚙️' },
   ],
   encadreur: [
@@ -46,6 +48,7 @@ const MENUS: Record<Role, Lien[]> = {
   ],
   parent: [{ a: '/parent', libelle: 'Mes enfants', icone: '👪' }],
   eleve: [{ a: '/eleve', libelle: 'Accueil', icone: '🏠' }],
+  relecteur_wolof: [{ a: '/wolof', libelle: 'À relire', icone: '🗣' }],
 };
 
 export default function Gabarit() {

@@ -9,6 +9,8 @@ import { ICONES_BLOC, LIBELLES_BLOC, useReferentiel, type Exercice } from '../..
 import { etoiles, type Maitrise } from '../../lib/suivi-regles';
 import { Alerte, Bouton, Chargement, Vide } from '../../ui/composants';
 import { lireAVoixHaute, useTravailEleve } from './donnees';
+import { AideWolofEleve, useAudioFrancais } from '../wolof/Wolof';
+import { LecteurAudio } from '../../ui/audio';
 
 function Retour({ a = '/eleve', texte = 'Accueil' }: { a?: string; texte?: string }) {
   return <Link to={a} className="mb-4 inline-flex min-h-[44px] items-center gap-2 text-base font-semibold text-teranga-800">← {texte}</Link>;
@@ -52,13 +54,21 @@ export function LeconEleve() {
   const l = t.data?.lecons.find((x) => x.id === id);
   if (!l) return <div className="mx-auto max-w-xl"><Retour a="/eleve/lecons" texte="Mes leçons" /><Alerte>Leçon introuvable.</Alerte></div>;
   const exercices = (t.data?.exercices ?? []).filter((e) => e.lesson_id === id);
+  return <LeconAffichee l={l} nbExercices={exercices.length} premierExercice={exercices[0]?.id} />;
+}
+
+function LeconAffichee({ l, nbExercices, premierExercice }: {
+  l: { id: string; title: string; content: { type: keyof typeof LIBELLES_BLOC; texte: string }[] }; nbExercices: number; premierExercice?: string;
+}) {
+  const voix = useAudioFrancais(l.id);
   return (
     <div className="mx-auto max-w-xl">
       <Retour a="/eleve/lecons" texte="Mes leçons" />
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{l.title}</h1>
-        <BoutonEcouter texte={[l.title, ...l.content.map((b) => b.texte)].join('. ')} />
+        {!voix.data && <BoutonEcouter texte={[l.title, ...l.content.map((b) => b.texte)].join('. ')} />}
       </div>
+      {voix.data && <div className="mb-4"><LecteurAudio chemin={voix.data.storage_path} libelle="Écouter la leçon" grand /></div>}
       <div className="space-y-3">
         {l.content.map((b, i) => (
           <section key={i} className={`rounded-2xl p-4 shadow-sm ${b.type === 'resume' ? 'bg-soleil-100' : 'bg-white'}`}>
@@ -70,10 +80,10 @@ export function LeconEleve() {
           </section>
         ))}
       </div>
-      <p className="mt-3 text-xs text-slate-500">L’explication complémentaire en wolof arrive à la Phase 5.</p>
-      {exercices.length > 0 && (
-        <Link to={`/eleve/exercer/${exercices[0].id}`} className="mt-6 flex min-h-[64px] items-center justify-center rounded-2xl bg-teranga-700 text-xl font-bold text-white">
-          ✏️ Je m’exerce ({exercices.length})
+      <div className="mt-4"><AideWolofEleve lessonId={l.id} /></div>
+      {nbExercices > 0 && premierExercice && (
+        <Link to={`/eleve/exercer/${premierExercice}`} className="mt-6 flex min-h-[64px] items-center justify-center rounded-2xl bg-teranga-700 text-xl font-bold text-white">
+          ✏️ Je m’exerce ({nbExercices})
         </Link>
       )}
     </div>
@@ -208,8 +218,12 @@ export function Exercer() {
           <Link to="/eleve/exercices" className="font-semibold text-teranga-800">Retour à mes exercices</Link>
         </>} />
       ) : (
-        <Question key={e.id} e={e} envoi={envoi.isPending}
-          onEnvoyer={(r) => envoi.mutate({ exercice: e.id, reponse: r }, { onSuccess: () => setEnvoye(true), onError: (x) => setErreur(messageErreur(x)) })} />
+        <>
+          <Question key={e.id} e={e} envoi={envoi.isPending}
+            onEnvoyer={(r) => envoi.mutate({ exercice: e.id, reponse: r }, { onSuccess: () => setEnvoye(true), onError: (x) => setErreur(messageErreur(x)) })} />
+          {/* Aide en wolof : entraînement uniquement (jamais pendant une évaluation). */}
+          <div className="mt-6"><AideWolofEleve key={`aide-${e.id}`} exerciseId={e.id} /></div>
+        </>
       )}
     </div>
   );

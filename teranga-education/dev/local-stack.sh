@@ -4,6 +4,7 @@
 #   PostgreSQL (local)  : port 5432, base « teranga_dev »
 #   GoTrue (auth)       : port 9999  (image officielle supabase/gotrue)
 #   PostgREST (données) : port 3000  (image officielle postgrest/postgrest)
+#   Stockage (fichiers) : port 5000  (image officielle supabase/storage-api)
 #   Passerelle          : port 54321 (Deno) : /auth/v1 → GoTrue, /rest/v1 → PostgREST,
 #                         /functions/v1 → fonctions serveur (même code que les Edge Functions)
 # L'application (Vite, port 5173) relaie ces chemins vers la passerelle, comme
@@ -22,6 +23,7 @@ PG_SUPER="${PG_SUPER:-postgres}"
 JWT_SECRET="dev-only-jwt-secret-teranga-education-local-32+chars"
 GOTRUE_IMAGE="supabase/gotrue:v2.170.0"
 POSTGREST_IMAGE="postgrest/postgrest:v12.2.3"
+STORAGE_IMAGE="supabase/storage-api:v1.14.5"
 RUN_DIR="${TERANGA_RUN_DIR:-$HERE/.run}"
 mkdir -p "$RUN_DIR"
 
@@ -37,6 +39,7 @@ SUPABASE_ANON_KEY=$ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
 GOTRUE_URL=http://localhost:9999
 POSTGREST_URL=http://localhost:3000
+STORAGE_URL=http://localhost:5000
 EOF
   # Variables lues par Vite (seule la clé publique « anon » va dans le navigateur).
   cat > "$ROOT/app/.env.local" <<EOF
@@ -59,6 +62,24 @@ db_create() {
   su "$PG_SUPER" -c "createdb $DB"
   su "$PG_SUPER" -c "psql -q -v ON_ERROR_STOP=1 -d $DB -f $HERE/roles.sql"
   psql_super "$DB" "-c 'create schema if not exists auth authorization supabase_auth_admin; grant create on database $DB to supabase_auth_admin; alter role supabase_auth_admin set search_path = auth;'"
+  psql_super "$DB" "-c 'create schema if not exists storage authorization supabase_storage_admin; grant create on database $DB to supabase_storage_admin; alter role supabase_storage_admin set search_path = storage;'"
+}
+
+start_storage() {
+  eval "$(keys)"
+  mkdir -p "$RUN_DIR/storage"
+  docker rm -f teranga-storage >/dev/null 2>&1 || true
+  docker run -d --name teranga-storage --network host \
+    -v "$RUN_DIR/storage:/var/lib/storage" \
+    -e ANON_KEY="$ANON_KEY" -e SERVICE_KEY="$SERVICE_ROLE_KEY" \
+    -e AUTH_JWT_SECRET="$JWT_SECRET" -e PGRST_JWT_SECRET="$JWT_SECRET" \
+    -e POSTGREST_URL=http://localhost:3000 \
+    -e "DATABASE_URL=postgres://supabase_storage_admin:dev-storage-admin@localhost:5432/$DB" \
+    -e FILE_SIZE_LIMIT=5242880 -e STORAGE_BACKEND=file -e FILE_STORAGE_BACKEND_PATH=/var/lib/storage \
+    -e TENANT_ID=stub -e REGION=local -e GLOBAL_S3_BUCKET=stub -e ENABLE_IMAGE_TRANSFORMATION=false \
+    -e SERVER_PORT=5000 -e PORT=5000 -e DATABASE_SEARCH_PATH=storage,public \
+    "$STORAGE_IMAGE" >/dev/null
+  wait_http http://localhost:5000/status "Stockage"
 }
 
 start_gotrue() {
@@ -118,25 +139,25 @@ apply_migrations() {
   for f in "$ROOT"/supabase/migrations/*.sql; do
     su "$PG_SUPER" -c "psql -q -v ON_ERROR_STOP=1 -d $DB -f $f"
   done
-  # Équivalent des droits par défaut de Supabase sur le schéma auth.
-  psql_super "$DB" "-c 'grant usage on schema auth to anon, authenticated, service_role; grant all on all tables in schema public to service_role; grant all on all sequences in schema public to service_role; grant execute on all functions in schema public to service_role;'"
+  # Équivalent des droits par défaut de Supabase sur les schémas auth et storage.
+  psql_super "$DB" "-c 'grant usage on schema auth to anon, authenticated, service_role; grant all on all tables in schema public to service_role; grant all on all sequences in schema public to service_role; grant execute on all functions in schema public to service_role; grant usage on schema storage to anon, authenticated, service_role; grant all on all tables in schema storage to anon, authenticated, service_role;'"
   docker kill -s SIGUSR1 teranga-postgrest >/dev/null 2>&1 || true   # recharge le cache de schéma
 }
 
 case "${1:-}" in
   up)
     service postgresql start >/dev/null
-    write_env; start_gotrue; start_postgrest; start_functions
+    write_env; start_gotrue; start_storage; start_postgrest; start_functions
     echo "Pile locale démarrée. Lancer l'application : cd app && npm run dev" ;;
   reset)
-    docker rm -f teranga-gotrue teranga-postgrest >/dev/null 2>&1 || true
-    db_create; write_env; start_gotrue; apply_migrations
+    docker rm -f teranga-gotrue teranga-postgrest teranga-storage >/dev/null 2>&1 || true
+    db_create; write_env; start_gotrue; start_storage; apply_migrations
     su "$PG_SUPER" -c "psql -q -v ON_ERROR_STOP=1 -d $DB -f $ROOT/supabase/seed/referentiel-provisoire-demo.sql"
     start_postgrest; start_functions
     node "$HERE/bootstrap-admin.mjs"
     echo "Base réinitialisée." ;;
   down)
-    docker rm -f teranga-gotrue teranga-postgrest >/dev/null 2>&1 || true
+    docker rm -f teranga-gotrue teranga-postgrest teranga-storage >/dev/null 2>&1 || true
     stop_functions
     echo "Pile locale arrêtée." ;;
   env) write_env; cat "$RUN_DIR/env" ;;

@@ -263,15 +263,24 @@ select tests.fails($$insert into publications (lesson_id, group_id, published_by
 update lessons set status = 'valide', validated_by = tests.id('enc1'), validated_at = now()
  where id = tests.id('lesson');
 
--- Explication wolof : enregistrement humain validé.
+-- Explication wolof enregistrée par l'encadreur (à valider), puis validée par la
+-- coordination (Phase 5 : l'auteur ne peut pas valider seul un contenu wolof).
 with m as (
-  insert into media (storage_path, mime_type, lang, origin, lesson_id, recorded_by, status, validated_by)
+  insert into media (storage_path, mime_type, lang, origin, lesson_id, recorded_by, status)
   values ('audio/test/division-wo.opus', 'audio/ogg', 'wo', 'humain', tests.id('lesson'),
-          tests.id('enc1'), 'valide', tests.id('enc1')) returning id)
+          tests.id('enc1'), 'a_valider') returning id)
 select tests.keep('media_wo', m.id) from m;
-insert into wolof_explanations (lesson_id, target_kind, target_text, media_id, origin, status, author_id, validated_by)
-values (tests.id('lesson'), 'notion', 'la division', tests.id('media_wo'), 'humain', 'valide',
-        tests.id('enc1'), tests.id('enc1'));
+with w as (
+  insert into wolof_explanations (lesson_id, target_kind, target_text, media_id, origin, status, author_id)
+  values (tests.id('lesson'), 'notion', 'la division', tests.id('media_wo'), 'humain', 'a_valider', tests.id('enc1'))
+  returning id)
+select tests.keep('wolof_div', w.id) from w;
+select tests.fails($$update wolof_explanations set status = 'valide', validated_by = tests.id('enc1') where id = tests.id('wolof_div')$$,
+                   'Phase 5 : un encadreur ne valide pas seul un contenu en wolof');
+select tests.login(tests.id('coord'));
+update media set status = 'valide', validated_by = tests.id('coord') where id = tests.id('media_wo');
+update wolof_explanations set status = 'valide', validated_by = tests.id('coord') where id = tests.id('wolof_div');
+select tests.login(tests.id('enc1'));
 -- Explication générée par IA, non validée : ne doit JAMAIS être visible par l'élève.
 insert into wolof_explanations (lesson_id, target_kind, target_text, text_wo, origin, author_id)
 values (tests.id('lesson'), 'consigne', 'Calcule', 'texte IA non relu (test)', 'ia', tests.id('enc1'));
@@ -566,6 +575,73 @@ select tests.login(tests.id('par1'));
 select tests.ok((select count(*) from notifications where kind = 'bilan') = 2
                 and (select bool_and(sent_at is not null) from reports),
                 'Phase 4 : un bilan envoyé directement est daté et notifié');
+
+-- =============================================================================
+-- Phase 5 : audio, wolof, relecteur, français obligatoire, stockage
+-- =============================================================================
+reset role;
+insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000e1');
+insert into profiles (id, first_name, last_name) values ('00000000-0000-0000-0000-0000000000e1', 'Relecteur', 'FICTIF');
+insert into user_roles values ('00000000-0000-0000-0000-0000000000e1', 'relecteur_wolof');
+insert into storage.buckets (id, name) values ('audio', 'audio') on conflict do nothing;
+set role authenticated;
+select tests.keep('rel', '00000000-0000-0000-0000-0000000000e1');
+
+select tests.login(tests.id('rel'));
+select tests.ok((select count(*) from students) = 0 and (select count(*) from submissions) = 0,
+                'Phase 5 : le relecteur wolof n''a accès à aucun dossier d''élève');
+select tests.ok((select count(*) from lessons) >= 1 and (select count(*) from wolof_explanations) >= 2,
+                'Phase 5 : le relecteur lit les leçons et les explications à relire');
+update wolof_explanations set text_wo = 'texte relu et corrigé (test)', status = 'valide', validated_by = tests.id('rel')
+ where origin = 'ia';
+select tests.login(tests.id('acc1'));
+select tests.ok((select count(*) from wolof_explanations) = 2,
+                'Phase 5 : après relecture, l''explication devient visible pour l''élève');
+
+select tests.login(tests.id('enc1'));
+update wolof_explanations set text_wo = 'modifié après validation (test)' where origin = 'ia';
+select tests.ok((select status from wolof_explanations where origin = 'ia') = 'a_valider',
+                'Phase 5 : une explication modifiée après validation repasse « à valider »');
+
+-- Enregistrement français humain : l'encadreur peut le valider lui-même.
+insert into media (storage_path, mime_type, lang, origin, lesson_id, recorded_by, status, validated_by)
+values (tests.id('enc1') || '/lecon-fr.webm', 'audio/webm', 'fr', 'humain', tests.id('lesson'), tests.id('enc1'), 'valide', tests.id('enc1'));
+select tests.fails($$insert into media (storage_path, mime_type, lang, origin, lesson_id, recorded_by, status, validated_by)
+                    values ('x/tts.webm', 'audio/webm', 'fr', 'tts', tests.id('lesson'), tests.id('enc1'), 'valide', tests.id('enc1'))$$,
+                   'Phase 5 : une voix de synthèse doit être validée par un relecteur');
+
+-- Aide wolof sur un exercice + évaluation « français obligatoire »
+insert into wolof_explanations (exercise_id, target_kind, target_text, text_wo, origin, author_id)
+values (tests.id('ex2'), 'consigne', 'Calcule', 'aide wolof fictive (test)', 'humain', tests.id('enc1'));
+select tests.login(tests.id('coord'));
+update wolof_explanations set status = 'valide', validated_by = tests.id('coord') where exercise_id = tests.id('ex2');
+select tests.login(tests.id('acc1'));
+select tests.ok(exists (select 1 from wolof_explanations where exercise_id = tests.id('ex2')),
+                'Phase 5 : l''aide wolof de l''exercice est visible en entraînement');
+select tests.login(tests.id('enc1'));
+with a as (insert into assessments (title, kind, level_code, french_only, status, author_id)
+           values ('Évaluation fictive en français', 'sommative', 'CE2', true, 'valide', tests.id('enc1')) returning id)
+select tests.keep('eval_fr', a.id) from a;
+insert into assessment_items values (tests.id('eval_fr'), tests.id('ex2'), 1, 1);
+insert into publications (assessment_id, student_id, published_by) values (tests.id('eval_fr'), tests.id('stu1'), tests.id('enc1'));
+select tests.login(tests.id('acc1'));
+select tests.ok(not exists (select 1 from wolof_explanations where exercise_id = tests.id('ex2')),
+                'Phase 5 : l''aide wolof est masquée pour un exercice d''évaluation « français obligatoire »');
+
+-- Fichiers audio : dépôt dans son propre dossier, lecture si la fiche est visible
+select tests.login(tests.id('enc1'));
+insert into storage.objects (bucket_id, name) values ('audio', tests.id('enc1') || '/lecon-fr.webm');
+select tests.fails($$insert into storage.objects (bucket_id, name) values ('audio', tests.id('enc2') || '/intrus.webm')$$,
+                   'Phase 5 : on ne dépose un fichier audio que dans son propre dossier');
+insert into storage.objects (bucket_id, name) values ('audio', tests.id('enc1') || '/brouillon.webm');
+select tests.login(tests.id('acc1'));
+select tests.ok((select count(*) from storage.objects) = 1,
+                'Phase 5 : l''élève n''accède qu''aux fichiers audio liés à un contenu validé et publié');
+select tests.login(tests.id('acc2'));
+select tests.ok((select count(*) from storage.objects) = 0, 'Phase 5 : un autre élève n''accède à aucun fichier audio');
+select tests.login(tests.id('acc1'));
+select tests.fails($$insert into storage.objects (bucket_id, name) values ('audio', tests.id('acc1') || '/x.webm')$$,
+                   'Phase 5 : un élève ne dépose pas de fichier audio');
 
 reset role;
 \echo '=== TOUS LES TESTS SONT PASSÉS ==='

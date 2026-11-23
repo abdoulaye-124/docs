@@ -1,5 +1,14 @@
 # Journal des évolutions — TERANGA ÉDUCATION
 
+## 2026-11-23 — Phase 5 : français / wolof (v0.5.0)
+
+- Enregistrement audio au micro ou dépôt de fichier (Opus 24 kb/s, 3 min max), stockage privé, lecture à la demande par lien temporaire.
+- Lecture de la leçon par la voix de l'encadreur ; explications complémentaires en wolof (notion, mot, consigne, problème) sur leçons et exercices.
+- Rôle « relecteur wolof » ; file de relecture avec correction du texte ; validation réservée au relecteur et à la coordination.
+- Aide en wolof pour l'élève ; masquage en évaluation et pour les exercices d'évaluations « français obligatoire ».
+- Migrations 6 (rôle) et 7 (règles audio et wolof, compartiment de stockage « audio ») ; service de stockage officiel ajouté à l'environnement local.
+- Tests : 86 SQL, 48 unitaires, 14 parcours navigateur (PC et Android, micro simulé).
+
 ## 2026-11-20 — Phase 4 : suivi et remédiation (v0.4.0) — validée par le promoteur
 
 - Dossier pédagogique : synthèse au départ / maintenant, tableau de progression (frise, tendance), ajustement justifié du niveau, observations internes ou partagées, bilans (pré-remplis, envoyés, figés, imprimables).

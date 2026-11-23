@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type { Profil, Role } from './types';
 
-const ORDRE_ROLES: Role[] = ['admin', 'coordinateur', 'encadreur', 'parent', 'eleve'];
+const ORDRE_ROLES: Role[] = ['admin', 'coordinateur', 'encadreur', 'relecteur_wolof', 'parent', 'eleve'];
 
 interface EtatSession {
   chargement: boolean;
@@ -116,6 +116,8 @@ export function accueilPour(role: Role | null): string {
       return '/parent';
     case 'eleve':
       return '/eleve';
+    case 'relecteur_wolof':
+      return '/wolof';
     default:
       return '/connexion';
   }

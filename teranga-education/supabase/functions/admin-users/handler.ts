@@ -14,7 +14,7 @@ import {
   normaliserTelephoneSN,
 } from '../../../shared/identifiants.ts';
 
-const ROLES = ['admin', 'coordinateur', 'encadreur', 'parent', 'eleve'] as const;
+const ROLES = ['admin', 'coordinateur', 'encadreur', 'parent', 'eleve', 'relecteur_wolof'] as const;
 type Role = (typeof ROLES)[number];
 
 const CORS = {

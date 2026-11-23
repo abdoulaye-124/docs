@@ -31,7 +31,7 @@ export default defineConfig({
       workbox: {
         // Phase 2 : on ne met en cache que l'application elle-même.
         // Les données (API) ne sont jamais mises en cache par le Service Worker.
-        navigateFallbackDenylist: [/^\/(auth|rest|functions)\//],
+        navigateFallbackDenylist: [/^\/(auth|rest|functions|storage)\//],
         globPatterns: ['**/*.{js,css,html,svg,png}'],
       },
     }),
@@ -48,6 +48,7 @@ export default defineConfig({
       '/auth/v1': passerelle,
       '/rest/v1': passerelle,
       '/functions/v1': passerelle,
+      '/storage/v1': passerelle,
     },
   },
   preview: {
@@ -58,6 +59,7 @@ export default defineConfig({
       '/auth/v1': passerelle,
       '/rest/v1': passerelle,
       '/functions/v1': passerelle,
+      '/storage/v1': passerelle,
     },
   },
   test: {

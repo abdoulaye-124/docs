@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'coordinateur' | 'encadreur' | 'parent' | 'eleve';
+export type Role = 'admin' | 'coordinateur' | 'encadreur' | 'parent' | 'eleve' | 'relecteur_wolof';
 export type Niveau = 'CI' | 'CP' | 'CE1' | 'CE2' | 'CM1' | 'CM2';
 export const NIVEAUX: Niveau[] = ['CI', 'CP', 'CE1', 'CE2', 'CM1', 'CM2'];
 
@@ -8,6 +8,7 @@ export const LIBELLES_ROLES: Record<Role, string> = {
   encadreur: 'Encadreur',
   parent: 'Parent',
   eleve: 'Élève',
+  relecteur_wolof: 'Relecteur wolof',
 };
 
 export interface Profil {

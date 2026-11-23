@@ -15,6 +15,7 @@ import { Alerte, Bouton, Carte, Case, Champ, Chargement, EnTete, Modale, Pastill
 import { PastilleStatut } from './ListeLecons';
 import EditeurExercice from './EditeurExercice';
 import Publier from './Publier';
+import { AudioFrancais, GestionWolof } from '../wolof/Wolof';
 
 const VIDE: Omit<Lecon, 'id' | 'author_id' | 'validated_by' | 'updated_at'> = {
   title: '', level_code: 'CE2', subject_id: null, prerequisites: '', remediation_hint: '', status: 'brouillon',
@@ -65,6 +66,7 @@ function Editeur({ id, donnees }: { id: string | null; donnees: { lecon: Lecon |
   const [message, setMessage] = useState<{ ton: 'succes' | 'erreur'; texte: string } | null>(
     (location.state as { message?: { ton: 'succes' | 'erreur'; texte: string } } | null)?.message ?? null);
   const [modale, setModale] = useState<null | { type: 'exercice'; ex: Exercice | null } | { type: 'publier' }>(null);
+  const [aideExercice, setAideExercice] = useState<string | null>(null);
   useEffect(() => { if (l) setF({ ...l, prerequisites: l.prerequisites ?? '', remediation_hint: l.remediation_hint ?? '' }); }, [l]);
 
   const rafraichir = () => { qc.invalidateQueries({ queryKey: ['lecon', id] }); qc.invalidateQueries({ queryKey: ['lecons'] }); };
@@ -168,14 +170,27 @@ function Editeur({ id, donnees }: { id: string | null; donnees: { lecon: Lecon |
           </Carte>
 
           {id && (
+            <Carte titre="Audio et aide en wolof">
+              <h3 className="mb-2 text-sm font-semibold text-slate-700">🔊 Lecture en français (voix de l’encadreur)</h3>
+              <AudioFrancais lessonId={id} modifiable={modifiable} />
+              <h3 className="mb-2 mt-5 text-sm font-semibold text-slate-700">🗣 Explications complémentaires en wolof</h3>
+              <GestionWolof lessonId={id} modifiable />
+            </Carte>
+          )}
+
+          {id && (
             <Carte titre={`Exercices (${donnees?.exercices.length ?? 0})`} actions={modifiable && <Bouton variante="discret" onClick={() => setModale({ type: 'exercice', ex: null })}>+ Exercice</Bouton>}>
               {!donnees?.exercices.length ? <Vide>Aucun exercice. Ajoutez des exercices progressifs (facile → difficile).</Vide> : (
                 <ol className="space-y-2">
                   {donnees.exercices.map((e, i) => (
-                    <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 p-3 text-sm">
-                      <span><strong>{i + 1}.</strong> {e.prompt} <span className="text-slate-500">· {LIBELLES_EXERCICE[e.kind]} · difficulté {e.difficulty}</span></span>
-                      <span className="flex items-center gap-2"><PastilleStatut s={e.status} />
-                        {modifiable && <Bouton variante="discret" onClick={() => setModale({ type: 'exercice', ex: e })}>Modifier</Bouton>}</span>
+                    <li key={e.id} className="rounded-lg border border-slate-200 p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span><strong>{i + 1}.</strong> {e.prompt} <span className="text-slate-500">· {LIBELLES_EXERCICE[e.kind]} · difficulté {e.difficulty}</span></span>
+                        <span className="flex items-center gap-2"><PastilleStatut s={e.status} />
+                          <Bouton variante="discret" onClick={() => setAideExercice(aideExercice === e.id ? null : e.id)}>🗣 Aide wolof</Bouton>
+                          {modifiable && <Bouton variante="discret" onClick={() => setModale({ type: 'exercice', ex: e })}>Modifier</Bouton>}</span>
+                      </div>
+                      {aideExercice === e.id && <div className="mt-3"><GestionWolof exerciseId={e.id} modifiable /></div>}
                     </li>
                   ))}
                 </ol>

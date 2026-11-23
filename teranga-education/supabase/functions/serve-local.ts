@@ -2,6 +2,7 @@
 // Reproduit l'adresse unique d'un projet Supabase :
 //   /auth/v1/*      → GoTrue    (localhost:9999)
 //   /rest/v1/*      → PostgREST (localhost:3000)
+//   /storage/v1/*   → Stockage  (localhost:5000)
 //   /functions/v1/* → fonctions serveur de ce dossier
 import { handler as adminUsers } from './admin-users/handler.ts';
 
@@ -12,6 +13,7 @@ const FONCTIONS: Record<string, (r: Request) => Promise<Response>> = {
 const AMONT: Record<string, string> = {
   '/auth/v1': Deno.env.get('GOTRUE_URL') ?? 'http://localhost:9999',
   '/rest/v1': Deno.env.get('POSTGREST_URL') ?? 'http://localhost:3000',
+  '/storage/v1': Deno.env.get('STORAGE_URL') ?? 'http://localhost:5000',
 };
 
 async function relayer(req: Request, cible: string): Promise<Response> {
