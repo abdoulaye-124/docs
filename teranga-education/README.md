@@ -10,7 +10,7 @@ Plateforme de gestion d'un centre d'accompagnement, de remédiation et de réuss
 | 1 | Cahier des charges et architecture | ✅ Validée par le promoteur |
 | 2 | Premier prototype (comptes, élèves, parents, groupes, séances) | ✅ Validé par le promoteur |
 | 3 | Module pédagogique (référentiel, leçons, exercices, évaluations, corrections) | ✅ Validé par le promoteur |
-| 4 | Suivi et remédiation (dossier, progression, diagnostic, programmes, bilans) | ✅ Livré, en attente de validation |
+| 4 | Suivi et remédiation (dossier, progression, diagnostic, programmes, bilans) | ✅ Validé par le promoteur |
 | 5 à 7 | Wolof, IA, tests et déploiement | À venir |
 
 ## Documents

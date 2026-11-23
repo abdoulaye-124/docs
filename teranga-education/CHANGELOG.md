@@ -1,6 +1,6 @@
 # Journal des évolutions — TERANGA ÉDUCATION
 
-## 2026-11-20 — Phase 4 : suivi et remédiation (v0.4.0)
+## 2026-11-20 — Phase 4 : suivi et remédiation (v0.4.0) — validée par le promoteur
 
 - Dossier pédagogique : synthèse au départ / maintenant, tableau de progression (frise, tendance), ajustement justifié du niveau, observations internes ou partagées, bilans (pré-remplis, envoyés, figés, imprimables).
 - Élèves en difficulté, diagnostic par les prérequis, programmes de remédiation proposés par règles, modifiables, validés par l'encadreur, lancés, suivis et clôturés avec mesure avant / après.
