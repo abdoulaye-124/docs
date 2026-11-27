@@ -227,7 +227,8 @@ test('Aucune page interne sans connexion', async ({ page }) => {
 
 test("Pas de défilement horizontal de la page (téléphone et PC)", async ({ page }) => {
   await connexion(page, 'Personnel', ADMIN.id, ADMIN.mdp);
-  for (const url of ['/direction', '/eleves', '/groupes', '/seances', '/parents', '/personnel']) {
+  for (const url of ['/direction', '/eleves', '/groupes', '/seances', '/parents', '/personnel', '/parametres',
+    '/lecons', '/lecons/nouvelle', '/evaluations', '/evaluations/nouvelle', '/corrections', '/suivi', '/remediation', '/referentiel', '/wolof']) {
     await page.goto(url);
     await page.waitForLoadState('networkidle');
     const debord = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

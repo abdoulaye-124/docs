@@ -5,9 +5,11 @@
 //   /storage/v1/*   → Stockage  (localhost:5000)
 //   /functions/v1/* → fonctions serveur de ce dossier
 import { handler as adminUsers } from './admin-users/handler.ts';
+import { handler as assistantIa } from './assistant-ia/handler.ts';
 
 const FONCTIONS: Record<string, (r: Request) => Promise<Response>> = {
   'admin-users': adminUsers,
+  'assistant-ia': assistantIa,
 };
 
 const AMONT: Record<string, string> = {

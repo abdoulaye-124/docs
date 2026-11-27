@@ -643,5 +643,34 @@ select tests.login(tests.id('acc1'));
 select tests.fails($$insert into storage.objects (bucket_id, name) values ('audio', tests.id('acc1') || '/x.webm')$$,
                    'Phase 5 : un élève ne dépose pas de fichier audio');
 
+-- =============================================================================
+-- Phase 6 : assistant IA (journal, indices)
+-- =============================================================================
+select tests.login(tests.id('enc1'));
+select tests.fails($$insert into ai_requests (requester_id, purpose) values (tests.id('enc1'), 'test')$$,
+                   'Phase 6 : un utilisateur n''écrit pas lui-même dans le journal de l''IA');
+reset role;
+insert into ai_requests (requester_id, purpose, role, student_id) values
+  (tests.id('enc1'), 'analyse_eleve', 'encadreur', tests.id('stu1')),
+  (tests.id('acc1'), 'indice', 'eleve', null);
+set role authenticated;
+select tests.login(tests.id('enc1'));
+select tests.ok((select count(*) from ai_requests) = 1 and ai_usage_today() = 1,
+                'Phase 6 : chacun ne voit que ses propres appels à l''IA et sa consommation du jour');
+select tests.login(tests.id('coord'));
+select tests.ok((select count(*) from ai_requests) = 2, 'Phase 6 : la coordination voit le journal complet de l''IA');
+
+-- Indices : entraînement oui, évaluation non
+select tests.login(tests.id('enc1'));
+with e as (insert into exercises (level_code, kind, prompt, author_id, status)
+           values ('CE2', 'reponse_courte', 'Exercice fictif d''entraînement : 10 ÷ 2 = ?', tests.id('enc1'), 'valide') returning id)
+select tests.keep('ex_indice', e.id) from e;
+insert into publications (exercise_id, student_id, published_by) values (tests.id('ex_indice'), tests.id('stu1'), tests.id('enc1'));
+select tests.login(tests.id('acc1'));
+select tests.ok(family_hint_allowed(tests.id('ex_indice')), 'Phase 6 : un indice est permis sur un exercice d''entraînement');
+select tests.ok(not family_hint_allowed(tests.id('ex2')), 'Phase 6 : aucun indice sur un exercice qui fait partie d''une évaluation');
+select tests.login(tests.id('acc2'));
+select tests.ok(not family_hint_allowed(tests.id('ex_indice')), 'Phase 6 : aucun indice sur un exercice qui n''est pas publié à l''élève');
+
 reset role;
 \echo '=== TOUS LES TESTS SONT PASSÉS ==='

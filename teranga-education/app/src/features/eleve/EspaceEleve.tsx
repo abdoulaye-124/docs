@@ -10,6 +10,7 @@ import { etoiles, type Maitrise } from '../../lib/suivi-regles';
 import { Alerte, Bouton, Chargement, Vide } from '../../ui/composants';
 import { lireAVoixHaute, useTravailEleve } from './donnees';
 import { AideWolofEleve, useAudioFrancais } from '../wolof/Wolof';
+import { IndiceIA } from '../ia/ComposantsIA';
 import { LecteurAudio } from '../../ui/audio';
 
 function Retour({ a = '/eleve', texte = 'Accueil' }: { a?: string; texte?: string }) {
@@ -222,7 +223,10 @@ export function Exercer() {
           <Question key={e.id} e={e} envoi={envoi.isPending}
             onEnvoyer={(r) => envoi.mutate({ exercice: e.id, reponse: r }, { onSuccess: () => setEnvoye(true), onError: (x) => setErreur(messageErreur(x)) })} />
           {/* Aide en wolof : entraînement uniquement (jamais pendant une évaluation). */}
-          <div className="mt-6"><AideWolofEleve key={`aide-${e.id}`} exerciseId={e.id} /></div>
+          <div className="mt-6 space-y-4">
+            <IndiceIA key={`indice-${e.id}`} exerciseId={e.id} />
+            <AideWolofEleve key={`aide-${e.id}`} exerciseId={e.id} />
+          </div>
         </>
       )}
     </div>

@@ -73,17 +73,18 @@ test('Phase 5 : audio, relecture wolof, aide wolof pour l’élève, français o
   // --- Le relecteur corrige et valide -----------------------------------------
   await connexion(page, 'Personnel', relecteur.email, relecteur.mdp);
   await expect(page.getByRole('heading', { name: 'Relecture des contenus en wolof' })).toBeVisible();
-  const aRelire = page.getByTestId('a-relire');
+  // La file est commune au centre : on ne regarde que les contenus de cette leçon.
+  const aRelire = page.getByTestId('a-relire').filter({ hasText: `Partager ${sfx}` });
   await expect(aRelire).toHaveCount(2);
-  const mot = page.locator('section', { hasText: '« partager »' });
+  const mot = page.locator('section', { hasText: '« partager »' }).filter({ hasText: `Partager ${sfx}` });
   const ecoute = signatureOk(page);
   await mot.getByRole('button', { name: /Écouter l’enregistrement/ }).click();
   await ecoute;
   await mot.getByLabel('Texte en wolof (corrigeable)').fill('[wolof] explication fictive relue et corrigée');
   await mot.getByRole('button', { name: 'Valider' }).click();
-  await expect(page.getByTestId('a-relire')).toHaveCount(1);
-  await page.getByTestId('a-relire').getByRole('button', { name: 'Valider' }).click();
-  await expect(page.getByText('Rien à relire.')).toBeVisible();
+  await expect(aRelire).toHaveCount(1);
+  await aRelire.getByRole('button', { name: 'Valider' }).click();
+  await expect(aRelire).toHaveCount(0);
   await page.goto('/eleves');   // le relecteur n'accède à aucun dossier d'élève
   await expect(page).toHaveURL(/\/wolof$/);
   await deconnexion(page);

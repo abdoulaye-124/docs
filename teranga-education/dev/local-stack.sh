@@ -40,6 +40,9 @@ SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
 GOTRUE_URL=http://localhost:9999
 POSTGREST_URL=http://localhost:3000
 STORAGE_URL=http://localhost:5000
+# Assistant IA : simulation en local (aucune clé, aucun coût). En production :
+# secret ANTHROPIC_API_KEY sur la fonction serveur, et TERANGA_IA_FOURNISSEUR=anthropic.
+TERANGA_IA_FOURNISSEUR=simulation
 EOF
   # Variables lues par Vite (seule la clé publique « anon » va dans le navigateur).
   cat > "$ROOT/app/.env.local" <<EOF

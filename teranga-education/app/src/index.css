@@ -5,4 +5,8 @@
 @layer base {
   html { -webkit-tap-highlight-color: transparent; }
   :focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+  /* Par défaut, un fieldset refuse de rétrécir : sur téléphone, il élargirait la page. */
+  fieldset { min-width: 0; }
+  /* Idem pour les cases d'une grille : un tableau large défile dans sa carte au lieu d'élargir la page. */
+  .grid > * { min-width: 0; }
 }

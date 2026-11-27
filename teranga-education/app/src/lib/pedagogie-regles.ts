@@ -45,6 +45,7 @@ export interface Exercice {
   max_points: number;
   status: StatutValidation;
   author_id: string | null;
+  origin?: string;
 }
 export interface Cle { exercise_id: string; answer_key: { correct?: string[]; accepted?: string[] }; explanation: string | null }
 

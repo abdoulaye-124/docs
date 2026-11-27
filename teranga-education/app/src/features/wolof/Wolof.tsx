@@ -9,6 +9,8 @@ import { LIBELLES_CIBLE, type CibleWolof } from '../../lib/audio-regles';
 import { LIBELLES_STATUT, type StatutValidation } from '../../lib/pedagogie';
 import { Alerte, Bouton, Carte, Champ, Chargement, EnTete, Pastille, Selection, Vide, ZoneTexte } from '../../ui/composants';
 import { deposerAudio, EnregistreurAudio, LecteurAudio, type AudioPret } from '../../ui/audio';
+import { assistant } from '../../lib/ia';
+import { BoutonIA, PropositionIA } from '../../ui/assistant';
 
 export interface ExplicationWolof {
   id: string; lesson_id: string | null; exercise_id: string | null; target_kind: CibleWolof; target_text: string;
@@ -104,6 +106,17 @@ function NouvelleExplication({ lessonId, exerciseId, onFait }: { lessonId?: stri
   const [texteWo, setTexteWo] = useState('');
   const [audio, setAudio] = useState<AudioPret | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [retourIA, setRetourIA] = useState<{ fr: string; remarque: string; simulation: boolean } | null>(null);
+  const ia = useMutation({
+    mutationFn: () => {
+      if (!texteFr.trim()) throw new Error('Indiquez d’abord le passage français à expliquer.');
+      return assistant<{ explication_fr_simple: string; remarque_relecteur: string }>('proposer_wolof', {
+        lesson_id: lessonId, exercise_id: exerciseId, type: cible, passage: texteFr.trim(),
+      });
+    },
+    onSuccess: (d) => setRetourIA({ fr: d.resultat.explication_fr_simple, remarque: d.resultat.remarque_relecteur, simulation: d.simulation }),
+    onError: (e) => setErreur((e as Error).message),
+  });
   const m = useMutation({
     mutationFn: async () => {
       if (!texteFr.trim()) throw new Error('Indiquez le passage français expliqué.');
@@ -134,7 +147,17 @@ function NouvelleExplication({ lessonId, exerciseId, onFait }: { lessonId?: stri
       <ZoneTexte label="Explication écrite en wolof (facultatif)" value={texteWo} onChange={(e) => setTexteWo(e.target.value)} maxLength={2000}
         aide="Orthographe officielle du wolof. Explication simple, sans donner la réponse." />
       <EnregistreurAudio onPret={setAudio} libelle="Enregistrer en wolof" />
-      <Bouton chargement={m.isPending} onClick={() => m.mutate()}>Envoyer en relecture</Bouton>
+      <div className="flex flex-wrap gap-2">
+        <Bouton chargement={m.isPending} onClick={() => m.mutate()}>Envoyer en relecture</Bouton>
+        <BoutonIA chargement={ia.isPending} onClick={() => ia.mutate()}>Proposer avec l’assistant</BoutonIA>
+      </div>
+      {retourIA && (
+        <PropositionIA simulation={retourIA.simulation} titre="Proposition envoyée en relecture wolof">
+          <p><strong>En français simple :</strong> {retourIA.fr}</p>
+          {retourIA.remarque && <p className="mt-1"><strong>Note pour le relecteur :</strong> {retourIA.remarque}</p>}
+          <button className="mt-2 font-semibold text-violet-900 underline" onClick={onFait}>Fermer</button>
+        </PropositionIA>
+      )}
     </div>
   );
 }
@@ -145,8 +168,8 @@ export function RelectureWolof() {
   const file = useQuery({
     queryKey: ['relecture-wolof'],
     queryFn: async () => {
-      const w = verifier(await supabase.from('wolof_explanations').select(`${SELECT_EXPLICATION}, lessons(title), exercises(prompt)`)
-        .eq('status', 'a_valider').order('created_at')) as unknown as (ExplicationWolof & { lessons: { title: string } | null; exercises: { prompt: string } | null })[];
+      const w = verifier(await supabase.from('wolof_explanations').select(`${SELECT_EXPLICATION}, lessons(title), exercises(prompt, lessons(title))`)
+        .eq('status', 'a_valider').order('created_at')) as unknown as (ExplicationWolof & { lessons: { title: string } | null; exercises: { prompt: string; lessons: { title: string } | null } | null })[];
       return w;
     },
   });
@@ -163,7 +186,7 @@ export function RelectureWolof() {
   );
 }
 
-function CarteRelecture({ w, onFait }: { w: ExplicationWolof & { lessons: { title: string } | null; exercises: { prompt: string } | null }; onFait: () => void }) {
+function CarteRelecture({ w, onFait }: { w: ExplicationWolof & { lessons: { title: string } | null; exercises: { prompt: string; lessons: { title: string } | null } | null }; onFait: () => void }) {
   const { profil } = useSession();
   const [texte, setTexte] = useState(w.text_wo ?? '');
   const [erreur, setErreur] = useState<string | null>(null);
@@ -185,7 +208,7 @@ function CarteRelecture({ w, onFait }: { w: ExplicationWolof & { lessons: { titl
       {w.origin !== 'humain' && <Pastille ton="bleu">{w.origin === 'ia' ? 'proposé par l’IA' : 'synthèse vocale'}</Pastille>}</span>}>
       <div className="space-y-3 text-sm" data-testid="a-relire">
         {erreur && <Alerte>{erreur}</Alerte>}
-        <p className="text-slate-600">Contexte : {w.lessons ? `leçon « ${w.lessons.title} »` : w.exercises ? `exercice « ${w.exercises.prompt} »` : '—'}</p>
+        <p className="text-slate-600">Contexte : {w.lessons ? `leçon « ${w.lessons.title} »` : w.exercises ? `exercice « ${w.exercises.prompt} »${w.exercises.lessons ? ` de la leçon « ${w.exercises.lessons.title} »` : ''}` : '—'}</p>
         {w.media && <LecteurAudio chemin={w.media.storage_path} libelle="Écouter l’enregistrement" />}
         <ZoneTexte label="Texte en wolof (corrigeable)" value={texte} onChange={(e) => setTexte(e.target.value)} maxLength={2000} />
         <div className="flex flex-wrap gap-2">

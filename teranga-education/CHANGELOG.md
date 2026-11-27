@@ -1,6 +1,15 @@
 # Journal des évolutions — TERANGA ÉDUCATION
 
-## 2026-11-23 — Phase 5 : français / wolof (v0.5.0)
+## 2026-11-27 — Phase 6 : assistant pédagogique (v0.6.0)
+
+- Fonction serveur `assistant-ia` : plan de leçon, exercices proposés (brouillon), analyse de résultats, brouillon de bilan, assistant bilingue (wolof en relecture), indices aux élèves (sans réponse, hors évaluation), conseils aux parents.
+- Pseudonymisation avec blocage de l'envoi si un nom subsiste ; texte envoyé conservé au journal ; quotas quotidiens par rôle ; activation et statistiques dans Paramètres.
+- Fournisseur interchangeable : Anthropic (Claude Opus 5.5 par défaut, kit officiel, réponses structurées, repli automatique) ou simulation (par défaut sans clé, utilisée pour tous les tests).
+- Migration 8 : journal enrichi (non modifiable par les utilisateurs), réglages IA, `family_hint_allowed`, `ai_usage_today`.
+- Corrigé : débordement horizontal sur téléphone (champs groupés et tableaux dans les grilles), test anti-débordement étendu à 16 pages ; détection des e-mails ; contexte de leçon dans la relecture wolof.
+- Tests : 92 SQL, 64 unitaires, 16 parcours navigateur (PC et Android).
+
+## 2026-11-23 — Phase 5 : français / wolof (v0.5.0) — validée par le promoteur
 
 - Enregistrement audio au micro ou dépôt de fichier (Opus 24 kb/s, 3 min max), stockage privé, lecture à la demande par lien temporaire.
 - Lecture de la leçon par la voix de l'encadreur ; explications complémentaires en wolof (notion, mot, consigne, problème) sur leçons et exercices.

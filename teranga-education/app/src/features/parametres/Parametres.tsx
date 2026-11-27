@@ -7,6 +7,7 @@ import { formatDate } from '../../lib/dates';
 import { useMatieres } from '../../lib/pedagogie';
 import { NIVEAUX } from '../../lib/types';
 import { Selection } from '../../ui/composants';
+import ParametresIA from './ParametresIA';
 import { Alerte, Bouton, Carte, Champ, EnTete, Vide } from '../../ui/composants';
 
 export default function Parametres() {
@@ -74,6 +75,7 @@ export default function Parametres() {
           )}
           <p className="mt-3 text-xs text-slate-500">Les matières doivent correspondre aux disciplines des référentiels officiels de chaque niveau.</p>
         </Carte>
+        <ParametresIA />
       </div>
     </>
   );

@@ -14,6 +14,9 @@ import {
 import { nomComplet, type Eleve } from '../../lib/types';
 import { Alerte, Bouton, Carte, Case, Champ, Chargement, EnTete, Modale, Pastille, Selection, Statistique, Vide, ZoneTexte } from '../../ui/composants';
 import { AvantApres, Frise, PastilleMaitrise, STATUTS_PLAN, type Bilan, type Plan } from './communs';
+import { AnalyseIA, ConseilsParentIA } from '../ia/ComposantsIA';
+import { assistant } from '../../lib/ia';
+import { BoutonIA, PropositionIA } from '../../ui/assistant';
 
 const EVOLUTION = { progres: { t: '↗ progrès', ton: 'vert' }, stable: { t: '→ stable', ton: 'neutre' }, recul: { t: '↘ recul', ton: 'rouge' } } as const;
 
@@ -112,6 +115,10 @@ export default function DossierPedagogique() {
             <p className="mt-2 px-4 text-xs text-slate-500 sm:px-0">Chaque point est une évaluation (rouge : non acquis, orange : en cours, vert : acquis). Point cerclé de bleu : niveau ajusté par l’encadreur.</p>
           </div>
         )}
+      </Carte>
+
+      <Carte titre={famille ? 'Comprendre les résultats' : 'Analyse de l’assistant'} className="mt-5">
+        {famille ? <ConseilsParentIA studentId={id} /> : <AnalyseIA studentId={id} />}
       </Carte>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -250,6 +257,14 @@ function EditionBilan({ eleveId, bilan, prefill, onFait }: { eleveId: string; bi
   const [periode, setPeriode] = useState({ debut: bilan?.period_start ?? aujourdhui(-30), fin: bilan?.period_end ?? aujourdhui() });
   const [corps, setCorps] = useState<Bilan['body']>(bilan?.body ?? { ...prefill });
   const [erreur, setErreur] = useState<string | null>(null);
+  const [simulation, setSimulation] = useState<boolean | null>(null);
+  const ia = useMutation({
+    mutationFn: () => assistant<{ synthese: string; points_forts: string; difficultes: string; recommandations: string }>('brouillon_bilan', {
+      student_id: eleveId, debut: periode.debut, fin: periode.fin,
+    }),
+    onSuccess: (d) => { setCorps({ ...corps, ...d.resultat }); setSimulation(d.simulation); },
+    onError: (e) => setErreur((e as Error).message),
+  });
   const m = useMutation({
     mutationFn: async (statut: Bilan['status']) => {
       if (statut === 'envoye' && !corps.synthese?.trim()) throw new Error('Rédigez au moins la synthèse avant d’envoyer.');
@@ -266,6 +281,8 @@ function EditionBilan({ eleveId, bilan, prefill, onFait }: { eleveId: string; bi
         <Champ label="Du" type="date" value={periode.debut} onChange={(e) => setPeriode({ ...periode, debut: e.target.value })} required />
         <Champ label="Au" type="date" value={periode.fin} onChange={(e) => setPeriode({ ...periode, fin: e.target.value })} required />
       </div>
+      <BoutonIA chargement={ia.isPending} onClick={() => ia.mutate()}>Pré-remplir avec l’assistant</BoutonIA>
+      {simulation !== null && <PropositionIA simulation={simulation}>Brouillon pré-rempli : relisez, corrigez et complétez chaque rubrique avant d’envoyer.</PropositionIA>}
       {RUBRIQUES.map((r) => (
         <ZoneTexte key={r.k} label={r.t} value={corps[r.k] ?? ''} onChange={(e) => setCorps({ ...corps, [r.k]: e.target.value })} maxLength={3000} />
       ))}

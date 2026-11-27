@@ -11,6 +11,7 @@ import type { Maitrise } from '../../lib/suivi-regles';
 import { nomComplet } from '../../lib/types';
 import { Alerte, Bouton, Carte, Cellule, Champ, Chargement, EnTete, Pastille, Tableau, Vide, ZoneTexte } from '../../ui/composants';
 import { AvantApres, PastilleMaitrise, STATUTS_PLAN, type Plan } from './communs';
+import { AnalyseIA } from '../ia/ComposantsIA';
 
 // ----------------------------------------------------------------------------- Élèves en difficulté (T12)
 export function ElevesEnDifficulte() {
@@ -133,6 +134,7 @@ export function Diagnostic() {
           </p>
         </Carte>
       </div>
+      <Carte className="mt-5" titre="Avis de l’assistant"><AnalyseIA studentId={eleve} nodeId={noeud} /></Carte>
       <Carte className="mt-5" titre="Programme de remédiation">
         <p className="mb-3 text-sm text-slate-600">Le système propose un programme à partir des prérequis et des exercices validés. <strong>Vous le vérifiez et le validez</strong> avant qu’il soit transmis à l’élève.</p>
         <Bouton chargement={proposer.isPending} onClick={() => proposer.mutate()}>Proposer un programme</Bouton>

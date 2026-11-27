@@ -16,6 +16,8 @@ import { PastilleStatut } from './ListeLecons';
 import EditeurExercice from './EditeurExercice';
 import Publier from './Publier';
 import { AudioFrancais, GestionWolof } from '../wolof/Wolof';
+import { assistant } from '../../lib/ia';
+import { BoutonIA, PropositionIA } from '../../ui/assistant';
 
 const VIDE: Omit<Lecon, 'id' | 'author_id' | 'validated_by' | 'updated_at'> = {
   title: '', level_code: 'CE2', subject_id: null, prerequisites: '', remediation_hint: '', status: 'brouillon',
@@ -67,6 +69,32 @@ function Editeur({ id, donnees }: { id: string | null; donnees: { lecon: Lecon |
     (location.state as { message?: { ton: 'succes' | 'erreur'; texte: string } } | null)?.message ?? null);
   const [modale, setModale] = useState<null | { type: 'exercice'; ex: Exercice | null } | { type: 'publier' }>(null);
   const [aideExercice, setAideExercice] = useState<string | null>(null);
+  const [propositionIA, setPropositionIA] = useState<{ nombre: string; difficulte: string } | null>(null);
+  const [noteIA, setNoteIA] = useState<{ texte: string; simulation: boolean } | null>(null);
+
+  const planIA = useMutation({
+    mutationFn: () => {
+      if (!f.title.trim()) throw new Error('Donnez d’abord un titre à la leçon.');
+      return assistant<{ blocs: Bloc[] }>('plan_lecon', { titre: f.title, niveau: f.level_code, objectifs: [...objs] });
+    },
+    onSuccess: (d) => {
+      const vide = f.content.every((b) => !b.texte.trim());
+      setF({ ...f, content: vide ? d.resultat.blocs : [...f.content, ...d.resultat.blocs] });
+      setNoteIA({ texte: 'Plan proposé inséré dans la leçon : relisez-le et corrigez-le avant de valider.', simulation: d.simulation });
+    },
+    onError: (e) => setMessage({ ton: 'erreur', texte: (e as Error).message }),
+  });
+  const exercicesIA = useMutation({
+    mutationFn: () => assistant<{ exercices_crees: number }>('generer_exercices', {
+      lesson_id: id, nombre: Number(propositionIA?.nombre ?? 3), difficulte: Number(propositionIA?.difficulte ?? 1),
+    }),
+    onSuccess: (d) => {
+      setPropositionIA(null);
+      setNoteIA({ texte: `${d.resultat.exercices_crees} exercice(s) proposé(s) en brouillon : vérifiez chaque consigne, réponse et correction, puis validez ou supprimez.`, simulation: d.simulation });
+      rafraichir();
+    },
+    onError: (e) => setMessage({ ton: 'erreur', texte: (e as Error).message }),
+  });
   useEffect(() => { if (l) setF({ ...l, prerequisites: l.prerequisites ?? '', remediation_hint: l.remediation_hint ?? '' }); }, [l]);
 
   const rafraichir = () => { qc.invalidateQueries({ queryKey: ['lecon', id] }); qc.invalidateQueries({ queryKey: ['lecons'] }); };
@@ -138,7 +166,8 @@ function Editeur({ id, donnees }: { id: string | null; donnees: { lecon: Lecon |
             </fieldset>
           </Carte>
 
-          <Carte titre="Contenu de la leçon">
+          <Carte titre="Contenu de la leçon" actions={modifiable && <BoutonIA chargement={planIA.isPending} onClick={() => planIA.mutate()}>Proposer un plan</BoutonIA>}>
+            {noteIA && <div className="mb-3"><PropositionIA simulation={noteIA.simulation}>{noteIA.texte}</PropositionIA></div>}
             <fieldset disabled={!modifiable} className="space-y-3">
               {f.content.map((b, i) => (
                 <div key={i} className="rounded-lg border border-slate-200 p-3">
@@ -179,13 +208,28 @@ function Editeur({ id, donnees }: { id: string | null; donnees: { lecon: Lecon |
           )}
 
           {id && (
-            <Carte titre={`Exercices (${donnees?.exercices.length ?? 0})`} actions={modifiable && <Bouton variante="discret" onClick={() => setModale({ type: 'exercice', ex: null })}>+ Exercice</Bouton>}>
+            <Carte titre={`Exercices (${donnees?.exercices.length ?? 0})`} actions={modifiable && <span className="flex flex-wrap gap-2">
+              <BoutonIA onClick={() => setPropositionIA(propositionIA ? null : { nombre: '3', difficulte: '1' })}>Proposer des exercices</BoutonIA>
+              <Bouton variante="discret" onClick={() => setModale({ type: 'exercice', ex: null })}>+ Exercice</Bouton>
+            </span>}>
+              {propositionIA && (
+                <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-violet-200 bg-violet-50/60 p-3">
+                  <Selection label="Nombre" value={propositionIA.nombre} onChange={(e) => setPropositionIA({ ...propositionIA, nombre: e.target.value })}>
+                    {[1, 2, 3, 4, 5].map((n) => <option key={n}>{n}</option>)}
+                  </Selection>
+                  <Selection label="Difficulté" value={propositionIA.difficulte} onChange={(e) => setPropositionIA({ ...propositionIA, difficulte: e.target.value })}>
+                    <option value="1">1 · facile</option><option value="2">2 · moyen</option><option value="3">3 · difficile</option>
+                  </Selection>
+                  <BoutonIA chargement={exercicesIA.isPending} onClick={() => exercicesIA.mutate()}>Générer en brouillon</BoutonIA>
+                </div>
+              )}
               {!donnees?.exercices.length ? <Vide>Aucun exercice. Ajoutez des exercices progressifs (facile → difficile).</Vide> : (
                 <ol className="space-y-2">
                   {donnees.exercices.map((e, i) => (
                     <li key={e.id} className="rounded-lg border border-slate-200 p-3 text-sm">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span><strong>{i + 1}.</strong> {e.prompt} <span className="text-slate-500">· {LIBELLES_EXERCICE[e.kind]} · difficulté {e.difficulty}</span></span>
+                        <span><strong>{i + 1}.</strong> {e.prompt} <span className="text-slate-500">· {LIBELLES_EXERCICE[e.kind]} · difficulté {e.difficulty}</span>
+                          {e.origin === 'ia' && <span className="ml-2"><Pastille ton="bleu">proposé par l’IA</Pastille></span>}</span>
                         <span className="flex items-center gap-2"><PastilleStatut s={e.status} />
                           <Bouton variante="discret" onClick={() => setAideExercice(aideExercice === e.id ? null : e.id)}>🗣 Aide wolof</Bouton>
                           {modifiable && <Bouton variante="discret" onClick={() => setModale({ type: 'exercice', ex: e })}>Modifier</Bouton>}</span>
