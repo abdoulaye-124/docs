@@ -1,0 +1,82 @@
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
+import { useSalles, verifier } from '../../lib/requetes';
+import { messageErreur } from '../../lib/erreurs';
+import { formatDate } from '../../lib/dates';
+import { useMatieres } from '../../lib/pedagogie';
+import { NIVEAUX } from '../../lib/types';
+import { Selection } from '../../ui/composants';
+import ParametresIA from './ParametresIA';
+import { Alerte, Bouton, Carte, Champ, EnTete, Vide } from '../../ui/composants';
+
+export default function Parametres() {
+  const qc = useQueryClient();
+  const salles = useSalles();
+  const annees = useQuery({
+    queryKey: ['annees'],
+    queryFn: async () => verifier(await supabase.from('school_years').select('*').order('starts_on', { ascending: false })),
+  });
+  const matieres = useMatieres();
+  const [matiere, setMatiere] = useState({ name: '', level_code: '' });
+  const ajoutMatiere = useMutation({
+    mutationFn: async () => verifier(await supabase.from('subjects').insert({ name: matiere.name, level_code: matiere.level_code || null })),
+    onSuccess: () => { setMatiere({ name: '', level_code: '' }); setErreur(null); qc.invalidateQueries({ queryKey: ['matieres'] }); },
+    onError: (e) => setErreur(messageErreur(e)),
+  });
+  const [salle, setSalle] = useState({ name: '', capacity: '' });
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const ajout = useMutation({
+    mutationFn: async () => verifier(await supabase.from('rooms').insert({ name: salle.name, capacity: salle.capacity ? Number(salle.capacity) : null })),
+    onSuccess: () => { setSalle({ name: '', capacity: '' }); setErreur(null); qc.invalidateQueries({ queryKey: ['salles'] }); },
+    onError: (e) => setErreur(messageErreur(e)),
+  });
+  function soumettre(e: FormEvent) { e.preventDefault(); ajout.mutate(); }
+
+  return (
+    <>
+      <EnTete titre="Paramètres du centre" />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Carte titre="Salles">
+          {erreur && <div className="mb-3"><Alerte>{erreur}</Alerte></div>}
+          <form onSubmit={soumettre} className="mb-4 grid grid-cols-[1fr_100px_auto] items-end gap-2">
+            <Champ label="Nom" value={salle.name} onChange={(e) => setSalle({ ...salle, name: e.target.value })} required />
+            <Champ label="Places" type="number" min={1} value={salle.capacity} onChange={(e) => setSalle({ ...salle, capacity: e.target.value })} />
+            <Bouton type="submit" chargement={ajout.isPending}>Ajouter</Bouton>
+          </form>
+          {!salles.data?.length ? <Vide>Aucune salle.</Vide> : (
+            <ul className="divide-y divide-slate-100 text-sm">
+              {salles.data.map((r) => <li key={r.id} className="py-2">{r.name}{r.capacity ? ` · ${r.capacity} places` : ''}</li>)}
+            </ul>
+          )}
+        </Carte>
+        <Carte titre="Année scolaire">
+          {!annees.data?.length ? <Vide>Aucune année scolaire.</Vide> : (
+            <ul className="text-sm">
+              {annees.data.map((a) => (
+                <li key={a.id} className="py-1">{a.label} : du {formatDate(a.starts_on)} au {formatDate(a.ends_on)} {a.is_current && '(en cours)'}</li>
+              ))}
+            </ul>
+          )}
+        </Carte>
+        <Carte titre="Matières" className="lg:col-span-2">
+          <form onSubmit={(e) => { e.preventDefault(); ajoutMatiere.mutate(); }} className="mb-4 grid grid-cols-[1fr_140px_auto] items-end gap-2">
+            <Champ label="Matière" value={matiere.name} onChange={(e) => setMatiere({ ...matiere, name: e.target.value })} required />
+            <Selection label="Niveau" value={matiere.level_code} onChange={(e) => setMatiere({ ...matiere, level_code: e.target.value })}>
+              <option value="">Tous</option>{NIVEAUX.map((n) => <option key={n}>{n}</option>)}
+            </Selection>
+            <Bouton type="submit" chargement={ajoutMatiere.isPending}>Ajouter</Bouton>
+          </form>
+          {!matieres.data?.length ? <Vide>Aucune matière.</Vide> : (
+            <ul className="flex flex-wrap gap-2 text-sm">
+              {matieres.data.map((m) => <li key={m.id} className="rounded-full border border-slate-200 px-3 py-1">{m.name}{m.level_code ? ` · ${m.level_code}` : ''}</li>)}
+            </ul>
+          )}
+          <p className="mt-3 text-xs text-slate-500">Les matières doivent correspondre aux disciplines des référentiels officiels de chaque niveau.</p>
+        </Carte>
+        <ParametresIA />
+      </div>
+    </>
+  );
+}
