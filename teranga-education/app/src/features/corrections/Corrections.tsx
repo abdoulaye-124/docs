@@ -29,9 +29,15 @@ export default function Corrections() {
   const qc = useQueryClient();
   const copies = useQuery({
     queryKey: ['corrections', 'file'],
-    queryFn: async () => verifier(await supabase.from('submissions')
-      .select('id, student_id, answer, auto_score, submitted_at, assessment_id, students(first_name, last_name, level_code), exercises(id, prompt, kind, choices, max_points, exercise_keys(answer_key, explanation)), assessments(title)')
-      .eq('status', 'soumis').order('submitted_at')) as unknown as Copie[],
+    queryFn: async () => {
+      const copies = verifier(await supabase.from('submissions')
+        .select('id, student_id, answer, submitted_at, assessment_id, students(first_name, last_name, level_code), exercises(id, prompt, kind, choices, max_points, exercise_keys(answer_key, explanation)), assessments(title)')
+        .eq('status', 'soumis').order('submitted_at')) as unknown as Omit<Copie, 'auto_score'>[];
+      if (!copies.length) return [] as Copie[];
+      // La note automatique n'est lisible que par le personnel affecté (fonction contrôlée).
+      const notes = verifier(await supabase.rpc('auto_scores', { p_ids: copies.map((c) => c.id) })) as { id: string; auto_score: number | null }[];
+      return copies.map((c) => ({ ...c, auto_score: notes.find((n) => n.id === c.id)?.auto_score ?? null })) as Copie[];
+    },
   });
   const [message, setMessage] = useState<string | null>(null);
 

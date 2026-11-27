@@ -27,6 +27,18 @@ STORAGE_IMAGE="supabase/storage-api:v1.14.5"
 RUN_DIR="${TERANGA_RUN_DIR:-$HERE/.run}"
 mkdir -p "$RUN_DIR"
 
+# Relance PostgreSQL et Docker s'ils sont arrêtés (poste de développement).
+assurer_services() {
+  service postgresql start >/dev/null 2>&1 || true
+  if ! docker info >/dev/null 2>&1; then
+    if command -v dockerd >/dev/null 2>&1; then
+      (dockerd > "$RUN_DIR/dockerd.log" 2>&1 &)
+      for _ in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
+    fi
+    docker info >/dev/null 2>&1 || { echo "Docker est indisponible : démarrez-le puis relancez." >&2; exit 1; }
+  fi
+}
+
 psql_super() { su "$PG_SUPER" -c "psql -q -v ON_ERROR_STOP=1 -d $1 $2"; }
 
 keys() { node "$HERE/jwt.mjs" "$JWT_SECRET"; }
@@ -98,7 +110,7 @@ start_gotrue() {
     -e GOTRUE_JWT_ADMIN_ROLES=service_role \
     -e GOTRUE_DISABLE_SIGNUP=true \
     -e GOTRUE_EXTERNAL_EMAIL_ENABLED=true -e GOTRUE_MAILER_AUTOCONFIRM=true \
-    -e GOTRUE_EXTERNAL_PHONE_ENABLED=true -e GOTRUE_SMS_AUTOCONFIRM=true \
+    -e GOTRUE_EXTERNAL_PHONE_ENABLED=false \
     -e GOTRUE_PASSWORD_MIN_LENGTH=8 \
     -e GOTRUE_RATE_LIMIT_TOKEN_REFRESH=10000 -e GOTRUE_RATE_LIMIT_VERIFY=10000 \
     "$GOTRUE_IMAGE" >/dev/null
@@ -146,6 +158,10 @@ apply_migrations() {
   psql_super "$DB" "-c 'grant usage on schema auth to anon, authenticated, service_role; grant all on all tables in schema public to service_role; grant all on all sequences in schema public to service_role; grant execute on all functions in schema public to service_role; grant usage on schema storage to anon, authenticated, service_role; grant all on all tables in schema storage to anon, authenticated, service_role;'"
   docker kill -s SIGUSR1 teranga-postgrest >/dev/null 2>&1 || true   # recharge le cache de schéma
 }
+
+case "${1:-}" in
+  up|reset) assurer_services ;;
+esac
 
 case "${1:-}" in
   up)

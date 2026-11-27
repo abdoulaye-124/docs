@@ -155,10 +155,11 @@ export function Statistique({ libelle, valeur, detail }: { libelle: string; vale
   );
 }
 
-/** Tableau qui défile horizontalement dans son propre cadre sur téléphone. */
-export function Tableau({ entetes, children }: { entetes: string[]; children: ReactNode }) {
+/** Tableau qui défile horizontalement dans son propre cadre sur téléphone.
+ *  La zone défilante est atteignable au clavier (accessibilité). */
+export function Tableau({ entetes, children, titre = 'Tableau' }: { entetes: string[]; children: ReactNode; titre?: string }) {
   return (
-    <div className="-mx-4 overflow-x-auto sm:mx-0">
+    <div className="-mx-4 overflow-x-auto sm:mx-0" tabIndex={0} role="region" aria-label={titre}>
       <table className="min-w-full divide-y divide-slate-200 text-sm">
         <thead className="bg-slate-50">
           <tr>

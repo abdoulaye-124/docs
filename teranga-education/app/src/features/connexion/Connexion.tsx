@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { messageErreur } from '../../lib/erreurs';
 import {
   IMAGES_CODE, LONGUEUR_CODE_IMAGE, codeImageVersMotDePasse, identifiantValide,
-  identifiantVersEmail, normaliserTelephoneSN,
+  identifiantVersEmail, normaliserTelephoneSN, telephoneVersEmail,
 } from '@shared/identifiants.ts';
 import { Alerte, Bouton, Champ } from '../../ui/composants';
 
@@ -20,7 +20,7 @@ export default function Connexion() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
 
-  async function connecter(identifiants: { email: string; password: string } | { phone: string; password: string }) {
+  async function connecter(identifiants: { email: string; password: string }) {
     setEnvoi(true);
     setErreur(null);
     const { error } = await supabase.auth.signInWithPassword(identifiants);
@@ -66,7 +66,7 @@ export default function Connexion() {
   );
 }
 
-type Connecter = (i: { email: string; password: string } | { phone: string; password: string }) => void;
+type Connecter = (i: { email: string; password: string }) => void;
 
 function FormPersonnel({ envoi, onConnecter }: { envoi: boolean; onConnecter: Connecter }) {
   const [id, setId] = useState('');
@@ -74,7 +74,7 @@ function FormPersonnel({ envoi, onConnecter }: { envoi: boolean; onConnecter: Co
   function soumettre(e: FormEvent) {
     e.preventDefault();
     const tel = normaliserTelephoneSN(id);
-    onConnecter(tel ? { phone: tel, password: mdp } : { email: id.trim().toLowerCase(), password: mdp });
+    onConnecter({ email: tel ? telephoneVersEmail(tel) : id.trim().toLowerCase(), password: mdp });
   }
   return (
     <form onSubmit={soumettre} className="space-y-4">
@@ -92,7 +92,7 @@ function FormParent({ envoi, onConnecter, onErreur }: { envoi: boolean; onConnec
     e.preventDefault();
     const n = normaliserTelephoneSN(tel);
     if (!n) return onErreur('Numéro de téléphone invalide. Exemple : 77 123 45 67');
-    onConnecter({ phone: n, password: mdp });
+    onConnecter({ email: telephoneVersEmail(n), password: mdp });
   }
   return (
     <form onSubmit={soumettre} className="space-y-4">

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pastille } from './composants';
+import { useAssistantDisponible } from '../lib/ia';
 
 /** Cadre commun à toute proposition de l'assistant : origine visible, rappel que l'humain décide. */
 export function PropositionIA({ simulation, titre = 'Proposition de l’assistant', children }: { simulation?: boolean; titre?: string; children: ReactNode }) {
@@ -17,6 +18,8 @@ export function PropositionIA({ simulation, titre = 'Proposition de l’assistan
 
 export function BoutonIA({ children, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { chargement?: boolean }) {
   const { chargement, ...reste } = p;
+  const disponible = useAssistantDisponible();
+  if (!disponible) return null;   // pas d'IA configurée (ou désactivée) : aucun bouton
   return (
     <button {...reste} disabled={reste.disabled || chargement}
       className={`inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-violet-300 bg-white px-4 text-sm font-semibold text-violet-900 hover:bg-violet-50 disabled:opacity-60 ${reste.className ?? ''}`}>

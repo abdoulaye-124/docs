@@ -15,8 +15,8 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "types": ["vite/client", "vite-plugin-pwa/client"],
-    "paths": { "@shared/*": ["../shared/*"] }
+    "paths": { "@shared/*": ["../supabase/functions/_shared/*"] }
   },
-  "include": ["src", "../shared"],
-  "exclude": ["../shared/**/*.test.ts"]
+  "include": ["src", "../supabase/functions/_shared"],
+  "exclude": ["../supabase/functions/_shared/**/*.test.ts"]
 }

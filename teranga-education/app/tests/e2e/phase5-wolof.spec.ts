@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ADMIN, Api, connexion, connexionEleve, deconnexion, fichierWav, jeton, preparerCentre } from './outils';
+import { ADMIN, Api, connexion, connexionEleve, deconnexion, fichierWav, jeton, jetonTelephone, preparerCentre } from './outils';
 
 // Scénario Phase 5 (étape T7 du scénario de validation) : audio français enregistré,
 // explications en wolof relues par un relecteur, aide masquée en évaluation
@@ -19,7 +19,7 @@ test('Phase 5 : audio, relecture wolof, aide wolof pour l’élève, français o
   // --- Préparation : relecteur, leçon publiée avec un exercice -------------
   const admin = new Api(await jeton({ email: ADMIN.id, password: ADMIN.mdp }));
   await admin.compte({ role: 'relecteur_wolof', first_name: 'Relecteur', last_name: `WOLOF-${sfx}`, email: relecteur.email, password: relecteur.mdp });
-  const enc = new Api(await jeton({ phone: `+221${c.encadreur.tel.replace(/\s/g, '')}`, password: c.encadreur.mdp }));
+  const enc = new Api(await jetonTelephone(c.encadreur.tel, c.encadreur.mdp));
   const div = (await enc.lire<{ id: string }[]>('curriculum_nodes?code=eq.P-M-03&select=id'))[0].id;
   const lecon = await enc.inserer('lessons', { title: `Partager ${sfx}`, level_code: 'CE2', author_id: c.encadreurId, status: 'valide',
     validated_by: c.encadreurId, content: [{ type: 'explication', texte: 'Partager, c’est donner la même part à chacun.' }] });

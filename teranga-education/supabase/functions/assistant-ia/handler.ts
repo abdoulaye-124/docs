@@ -13,7 +13,7 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.1
 import {
   INDICE_DE_SECOURS, ROLES_PAR_TACHE, construireRequete, contientNom, indiceSansReponse, pseudonymiser, verifierSortie,
   type Contexte, type ExerciceIA, type Tache,
-} from '../../../shared/ia.ts';
+} from '../_shared/ia.ts';
 import { demanderIA, ErreurIA, fournisseurConfigure, modeleConfigure } from './fournisseurs.ts';
 
 const CORS = {
@@ -263,6 +263,7 @@ export async function handler(req: Request): Promise<Response> {
   const role = ROLES_PAR_TACHE[tache].find((r) => roles.includes(r));
   if (!role) return json(403, { error: 'Cette fonction de l’assistant n’est pas disponible pour votre compte.' });
   if (!reglages.active) return json(503, { error: 'L’assistant est désactivé par la direction du centre.' });
+  if (fournisseurConfigure() === 'aucun') return json(503, { error: 'Assistant non activé : aucun fournisseur d’IA n’est configuré.' });
 
   const debutJour = new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString();
   const { count: utilise } = await admin.from('ai_requests').select('id', { count: 'exact', head: true })

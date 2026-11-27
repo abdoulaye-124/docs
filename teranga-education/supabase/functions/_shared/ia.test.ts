@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
-  SCHEMAS, construireRequete, contientNom, indiceSansReponse, pseudonymiser, simuler, verifierSortie, type Tache,
+  SCHEMAS, choisirFournisseur, construireRequete, contientNom, indiceSansReponse, pseudonymiser, simuler, verifierSortie, type Tache,
 } from './ia';
+
+describe('choisirFournisseur', () => {
+  it('sans clé : assistant désactivé (zéro frais), jamais de simulation implicite', () => {
+    expect(choisirFournisseur(undefined, false)).toBe('aucun');
+    expect(choisirFournisseur('anthropic', false)).toBe('aucun');
+  });
+  it('avec clé : Anthropic', () => expect(choisirFournisseur(undefined, true)).toBe('anthropic'));
+  it('simulation ou arrêt seulement sur demande explicite', () => {
+    expect(choisirFournisseur('simulation', true)).toBe('simulation');
+    expect(choisirFournisseur('aucun', true)).toBe('aucun');
+  });
+});
 
 describe('pseudonymiser', () => {
   it('retire prénom, nom, téléphone et e-mail', () => {

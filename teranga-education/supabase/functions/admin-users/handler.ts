@@ -12,7 +12,8 @@ import {
   identifiantValide,
   identifiantVersEmail,
   normaliserTelephoneSN,
-} from '../../../shared/identifiants.ts';
+  telephoneVersEmail,
+} from '../_shared/identifiants.ts';
 
 const ROLES = ['admin', 'coordinateur', 'encadreur', 'parent', 'eleve', 'relecteur_wolof'] as const;
 type Role = (typeof ROLES)[number];
@@ -98,10 +99,14 @@ async function creerCompte(ctx: Contexte, b: Record<string, unknown>) {
     }
     if (role === 'parent' && !phone) throw new ErreurMetier('Le téléphone du parent est obligatoire');
     if (!phone && !email) throw new ErreurMetier('Indiquer un e-mail ou un téléphone');
+    // Sans e-mail réel, on se connecte avec le numéro (identifiant technique, sans SMS).
+    if (!email && phone) email = telephoneVersEmail(phone);
   }
 
+  // Le téléphone n'est PAS donné au service d'authentification (cela exigerait des SMS) :
+  // il est conservé dans le profil pour le contact.
   const { data: cree, error: errAuth } = await ctx.admin.auth.admin.createUser({
-    email, phone, password: pwd, email_confirm: true, phone_confirm: true,
+    email, password: pwd, email_confirm: true,
   });
   if (errAuth || !cree.user) {
     const deja = /already|registered|exists/i.test(errAuth?.message ?? '');

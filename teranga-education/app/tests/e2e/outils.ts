@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, type Page } from '@playwright/test';
+import { telephoneVersEmail } from '../../../supabase/functions/_shared/identifiants.ts';
 
 const env = Object.fromEntries(
   readFileSync(fileURLToPath(new URL('../../../dev/.run/env', import.meta.url)), 'utf8')
@@ -13,6 +14,8 @@ const ANON = env.SUPABASE_ANON_KEY;
 
 export const ADMIN = { id: 'admin@demo.teranga.invalid', mdp: 'Admin-demo-2026' };
 export const NOMS_IMAGES = ['mangue', 'poisson', 'ballon', 'arbre', 'chèvre', 'soleil', 'lune', 'car', 'maison', 'coq', 'tam-tam', 'étoile'];
+
+export const jetonTelephone = (tel: string, password: string) => jeton({ email: telephoneVersEmail(tel), password });
 
 export async function jeton(identifiants: Record<string, string>) {
   const r = await fetch(`${G}/auth/v1/token?grant_type=password`, {

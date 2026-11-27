@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useSession } from '../lib/session';
+import Synchronisation from './Synchronisation';
 import { LIBELLES_ROLES, type Role } from '../lib/types';
 
 interface Lien { a: string; libelle: string; icone: string }
@@ -81,6 +82,7 @@ export default function Gabarit() {
           </div>
         </div>
       </header>
+      <Synchronisation />
 
       <div className="mx-auto flex max-w-7xl gap-6 px-4 pb-24 pt-5 md:pb-8">
         {menu.length > 1 && (

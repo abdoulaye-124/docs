@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { verifier } from '../../lib/requetes';
 import { useSession } from '../../lib/session';
-import { assistant } from '../../lib/ia';
+import { useEtatAssistant } from '../../lib/ia';
 import { messageErreur } from '../../lib/erreurs';
 import { LIBELLES_ROLES, type Role } from '../../lib/types';
 import { Alerte, Bouton, Carte, Case, Champ, Pastille, Tableau, Cellule } from '../../ui/composants';
@@ -19,7 +19,7 @@ export default function ParametresIA() {
   const { roleActif } = useSession();
   const qc = useQueryClient();
   const admin = roleActif === 'admin';
-  const etat = useQuery({ queryKey: ['ia-etat'], queryFn: async () => (await assistant<never>('etat')) as unknown as { fournisseur: string; modele: string; active: boolean } });
+  const etat = useEtatAssistant();
   const reglages = useQuery({
     queryKey: ['ia-reglages'],
     queryFn: async () => (verifier(await supabase.from('app_settings').select('value').eq('key', 'ia').single()) as { value: ReglagesIA }).value,
@@ -51,7 +51,8 @@ export default function ParametresIA() {
     <Carte titre="Assistant IA" className="lg:col-span-2">
       {message && <div className="mb-3"><Alerte ton={message.ton}>{message.texte}</Alerte></div>}
       <p className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-        Fournisseur : <strong>{etat.data?.fournisseur === 'anthropic' ? 'Anthropic (Claude)' : 'simulation'}</strong>
+        Fournisseur : <strong>{etat.data?.fournisseur === 'anthropic' ? 'Anthropic (Claude)' : etat.data?.fournisseur === 'simulation' ? 'simulation' : 'aucun'}</strong>
+        {etat.data?.fournisseur === 'aucun' && <Pastille>assistant non activé : aucune clé d’API, aucun frais</Pastille>}
         {etat.data?.fournisseur === 'simulation' && <Pastille ton="ambre">aucune IA réelle : réponses fictives de test</Pastille>}
         {etat.data?.fournisseur === 'anthropic' && <span>· modèle <code>{etat.data.modele}</code></span>}
       </p>

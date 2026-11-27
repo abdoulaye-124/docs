@@ -1,6 +1,15 @@
 # Journal des évolutions — TERANGA ÉDUCATION
 
-## 2026-11-27 — Phase 6 : assistant pédagogique (v0.6.0)
+## 2026-11-27 — Phase 7 : tests, sécurité et préparation de la mise en ligne (v0.7.0)
+
+- Cadre zéro frais : assistant IA désactivé sans clé (boutons masqués), connexion par téléphone sans SMS (identifiant technique), hébergement gratuit prévu (Supabase Free, Cloudflare Pages).
+- Sécurité : note automatique illisible par élèves et parents (migration 9, `auto_scores`), contrôles globaux RLS / droits anonymes / search_path, en-têtes de sécurité, React Router 7.18.5 (0 vulnérabilité), audit des dépendances en intégration continue.
+- Mode hors connexion pour les élèves : cache local, file d'envoi sans doublon, bandeau, ouverture sans réseau de l'application installée.
+- Accessibilité : analyse axe-core WCAG A/AA sur 13 écrans (PC et Android), 0 violation grave.
+- Sauvegarde chiffrée et restauration (base + audio), testées de bout en bout ; procédure de déploiement manuelle (GitHub Actions) ; code partagé dans `supabase/functions/_shared`.
+- Tests : 101 SQL, 75 unitaires, 20 parcours navigateur ; vérification de la version de production.
+
+## 2026-11-27 — Phase 6 : assistant pédagogique (v0.6.0) — validée par le promoteur
 
 - Fonction serveur `assistant-ia` : plan de leçon, exercices proposés (brouillon), analyse de résultats, brouillon de bilan, assistant bilingue (wolof en relecture), indices aux élèves (sans réponse, hors évaluation), conseils aux parents.
 - Pseudonymisation avec blocage de l'envoi si un nom subsiste ; texte envoyé conservé au journal ; quotas quotidiens par rôle ; activation et statistiques dans Paramètres.

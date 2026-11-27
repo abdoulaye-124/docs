@@ -1,5 +1,5 @@
 // Point d'entrée Supabase Edge Function.
-// NB : le dossier shared/ doit être accessible au déploiement (voir doc Phase 2).
+// Le code partagé est dans ../_shared (déployé avec les fonctions).
 import { handler } from './handler.ts';
 
 Deno.serve(handler);

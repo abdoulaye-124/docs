@@ -44,6 +44,11 @@ begin
   raise exception 'ÉCHEC : % (aurait dû être refusé)', label;
 end $$;
 
+-- Lecture de contrôle de la note automatique (le test vérifie le calcul serveur,
+-- que les utilisateurs ne peuvent plus lire directement depuis la Phase 7).
+create function tests.note_auto(p uuid) returns numeric language sql security definer as $$
+  select auto_score from public.submissions where id = p $$;
+
 grant execute on all functions in schema tests to authenticated;
 
 -- -----------------------------------------------------------------------------
@@ -330,7 +335,7 @@ select tests.keep('sub1', submit_answer(tests.id('ex1'), '{"selected":["a"]}',
                                         '11111111-1111-1111-1111-111111111111', tests.id('pub')));
 select tests.ok(submit_answer(tests.id('ex1'), '{"selected":["a"]}', '11111111-1111-1111-1111-111111111111')
                 = tests.id('sub1'), 'T8 : renvoi hors-ligne du même envoi = pas de doublon');
-select tests.ok((select auto_score from submissions where id = tests.id('sub1')) = 0,
+select tests.ok((select tests.note_auto(tests.id('sub1'))) = 0,
                 'T8 : score automatique calculé côté serveur (0, réponse fausse)');
 
 select tests.login(tests.id('acc2'));
@@ -433,7 +438,7 @@ begin
     v := submit_answer(tests.id('ex2'), '{"text":" 3 "}');
     perform tests.login(tests.id('enc1'));
     insert into corrections (submission_id, corrector_id, score, max_score)
-    select v, tests.id('enc1'), auto_score, 1 from submissions where id = v;
+    select v, tests.id('enc1'), (select a.auto_score from auto_scores(array[v]) a), 1;
   end loop;
 end $$;
 
@@ -672,5 +677,34 @@ select tests.ok(not family_hint_allowed(tests.id('ex2')), 'Phase 6 : aucun indic
 select tests.login(tests.id('acc2'));
 select tests.ok(not family_hint_allowed(tests.id('ex_indice')), 'Phase 6 : aucun indice sur un exercice qui n''est pas publié à l''élève');
 
+-- =============================================================================
+-- Phase 7 : durcissement
+-- =============================================================================
+select tests.login(tests.id('acc1'));
+select tests.fails($$select auto_score from submissions$$,
+                   'Phase 7 : l''élève ne peut pas lire la note automatique avant correction');
+select tests.ok((select count(*) from auto_scores(array(select id from submissions))) = 0,
+                'Phase 7 : la fonction des notes automatiques ne renvoie rien à un élève');
+select tests.ok((select count(*) from submissions) > 0, 'Phase 7 : l''élève lit toujours ses copies (sans la note automatique)');
+select tests.login(tests.id('par1'));
+select tests.fails($$select auto_score from submissions$$, 'Phase 7 : le parent ne lit pas la note automatique');
+select tests.login(tests.id('enc1'));
+select tests.ok((select count(*) from auto_scores(array(select id from submissions))) > 0,
+                'Phase 7 : l''encadreur affecté lit les notes automatiques de ses élèves');
+select tests.login(tests.id('enc2'));
+select tests.ok((select count(*) from auto_scores(array[tests.id('sub1')])) = 0,
+                'Phase 7 : un encadreur non affecté ne lit pas ces notes');
+
 reset role;
+select tests.ok(not exists (select 1 from pg_tables where schemaname = 'public' and not rowsecurity),
+                'Phase 7 : toutes les tables ont des règles d''accès (RLS) activées');
+select tests.ok(not exists (select 1 from information_schema.role_table_grants
+                            where grantee = 'anon' and table_schema = 'public'),
+                'Phase 7 : un visiteur non connecté n''a aucun droit sur aucune table');
+select tests.ok(not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.prosecdef
+    and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%')),
+  'Phase 7 : toutes les fonctions à privilèges fixent leur search_path (pas de détournement)');
+
 \echo '=== TOUS LES TESTS SONT PASSÉS ==='

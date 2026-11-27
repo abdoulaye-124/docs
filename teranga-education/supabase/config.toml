@@ -1,0 +1,9 @@
+# Configuration minimale pour l'outil en ligne de commande Supabase
+# (utilisée par le déploiement : migrations et fonctions serveur).
+project_id = "teranga-education"
+
+[functions.admin-users]
+verify_jwt = true
+
+[functions.assistant-ia]
+verify_jwt = true

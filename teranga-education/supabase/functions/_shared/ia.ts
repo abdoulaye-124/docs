@@ -18,6 +18,17 @@ export const ROLES_PAR_TACHE: Record<Tache, string[]> = {
   conseils_parent: ['parent'],
 };
 
+// ----------------------------------------------------------------------------- Choix du fournisseur
+export type Fournisseur = 'anthropic' | 'simulation' | 'aucun';
+
+/** Sans clé d'API, l'assistant est DÉSACTIVÉ (aucun frais, aucune fausse réponse).
+ *  La simulation n'est utilisée que si on la demande explicitement (développement, tests). */
+export function choisirFournisseur(choix: string | undefined, aUneCle: boolean): Fournisseur {
+  if (choix === 'simulation') return 'simulation';
+  if (choix === 'aucun') return 'aucun';
+  return aUneCle ? 'anthropic' : 'aucun';
+}
+
 // ----------------------------------------------------------------------------- Pseudonymisation
 const sansAccents = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 const echapper = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

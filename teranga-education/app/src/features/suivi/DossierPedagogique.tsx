@@ -82,7 +82,7 @@ export default function DossierPedagogique() {
 
       <Carte titre="Tableau de progression" className="mt-5">
         {!prog.length ? <Vide>Aucune compétence évaluée pour l’instant. Le tableau se remplit à chaque correction.</Vide> : (
-          <div className="-mx-4 overflow-x-auto sm:mx-0">
+          <div className="-mx-4 overflow-x-auto sm:mx-0" tabIndex={0} role="region" aria-label="Tableau de progression">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-left">
                 <tr>{['Objectif', 'Niveau initial', 'Évolution', 'Niveau récent', 'Tendance', ...(personnel ? [''] : [])].map((t) =>

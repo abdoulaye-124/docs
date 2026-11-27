@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ADMIN, Api, connexion, connexionEleve, deconnexion, jeton, preparerCentre } from './outils';
+import { ADMIN, Api, connexion, connexionEleve, deconnexion, jeton, jetonTelephone, preparerCentre } from './outils';
 
 // Scénario Phase 4 : étapes T12, T13 et T14 du scénario de validation, dans
 // l'interface, sur PC et sur Android. DONNÉES FICTIVES ; référentiel PROVISOIRE.
@@ -11,7 +11,7 @@ test('Phase 4 : difficulté repérée, diagnostic, remédiation validée, résul
   const c = await preparerCentre(sfx, info.project.name === 'pc' ? 1 : 2, '75');
 
   // --- Préparation par l'API : leçon, exercices, premières copies ratées ----
-  const enc = new Api(await jeton({ phone: `+221${c.encadreur.tel.replace(/\s/g, '')}`, password: c.encadreur.mdp }));
+  const enc = new Api(await jetonTelephone(c.encadreur.tel, c.encadreur.mdp));
   const noeud = async (code: string) => (await enc.lire<{ id: string }[]>(`curriculum_nodes?code=eq.${code}&select=id`))[0].id;
   const [div, tables] = [await noeud('P-M-03'), await noeud('P-M-01')];
   const lecon = await enc.inserer('lessons', { title: `Division ${sfx}`, level_code: 'CE2', author_id: c.encadreurId, status: 'valide',

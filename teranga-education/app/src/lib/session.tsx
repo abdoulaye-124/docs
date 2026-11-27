@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabase';
 import type { Profil, Role } from './types';
+import { ecrireCache, lireCache } from './horsligne';
 
 const ORDRE_ROLES: Role[] = ['admin', 'coordinateur', 'encadreur', 'relecteur_wolof', 'parent', 'eleve'];
 
@@ -45,14 +46,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     const uid = s.user.id;
+    // Sans réseau (connu du téléphone) : pas d'attente, on reprend le profil mémorisé.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const memo = lireCache<{ profil: Profil; roles: Role[] }>(`session:${uid}`)?.donnees;
+      if (memo) {
+        const tri = [...memo.roles].sort((a, b) => ORDRE_ROLES.indexOf(a) - ORDRE_ROLES.indexOf(b));
+        setProfil(memo.profil);
+        setRoles(tri);
+        const m = lireRoleMemorise();
+        setRoleActif(m && tri.includes(m) ? m : tri[0] ?? null);
+        setChargement(false);
+        return;
+      }
+    }
     const [p, r] = await Promise.all([
       supabase.from('profiles').select('id, first_name, last_name, phone, is_active').eq('id', uid).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', uid),
     ]);
-    const lesRoles = ((r.data ?? []).map((x) => x.role as Role)).sort(
-      (a, b) => ORDRE_ROLES.indexOf(a) - ORDRE_ROLES.indexOf(b),
-    );
-    setProfil((p.data as Profil) ?? null);
+    // Hors connexion : on reprend le profil mémorisé lors de la dernière connexion.
+    let profilLu = (p.data as Profil) ?? null;
+    let rolesLus = (r.data ?? []).map((x) => x.role as Role);
+    if (p.error || r.error) {
+      const memo = lireCache<{ profil: Profil; roles: Role[] }>(`session:${uid}`)?.donnees;
+      if (memo) { profilLu = memo.profil; rolesLus = memo.roles; }
+    } else if (profilLu) {
+      ecrireCache(`session:${uid}`, { profil: profilLu, roles: rolesLus });
+    }
+    const lesRoles = [...rolesLus].sort((a, b) => ORDRE_ROLES.indexOf(a) - ORDRE_ROLES.indexOf(b));
+    setProfil(profilLu);
     setRoles(lesRoles);
     const memo = lireRoleMemorise();
     setRoleActif(memo && lesRoles.includes(memo) ? memo : lesRoles[0] ?? null);

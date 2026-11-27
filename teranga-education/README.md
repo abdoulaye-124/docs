@@ -12,8 +12,8 @@ Plateforme de gestion d'un centre d'accompagnement, de remédiation et de réuss
 | 3 | Module pédagogique (référentiel, leçons, exercices, évaluations, corrections) | ✅ Validé par le promoteur |
 | 4 | Suivi et remédiation (dossier, progression, diagnostic, programmes, bilans) | ✅ Validé par le promoteur |
 | 5 | Français / wolof (audio, explications, relecture) | ✅ Validé par le promoteur |
-| 6 | Assistant pédagogique (IA) | ✅ Livré (testé en simulation), en attente de validation |
-| 7 | Tests et déploiement | À venir |
+| 6 | Assistant pédagogique (IA) | ✅ Validé par le promoteur (testé en simulation) |
+| 7 | Tests, sécurité, hors connexion, sauvegardes, préparation de la mise en ligne (zéro frais) | ✅ Livré, en attente de validation ; mise en ligne à faire ensemble |
 
 ## Documents
 
@@ -26,20 +26,22 @@ Plateforme de gestion d'un centre d'accompagnement, de remédiation et de réuss
 - [Phase 4 : suivi et remédiation](phase-4/README.md)
 - [Phase 5 : français / wolof](phase-5/README.md)
 - [Phase 6 : assistant pédagogique (IA)](phase-6/README.md)
+- [Phase 7 : tests, sécurité et mise en ligne](phase-7/README.md)
 - [Journal des évolutions](CHANGELOG.md)
 
 ## Code
 
 - `app/` : application web installable (React, TypeScript, Tailwind, PWA).
 - `supabase/functions/` : fonctions serveur (création sécurisée des comptes, assistant IA).
-- `shared/` : règles communes à l'application et au serveur (téléphones, identifiants).
-- `dev/` : environnement local identique à Supabase (voir [Phase 2 §3](phase-2/README.md)).
+- `supabase/functions/_shared/` : règles communes à l'application et au serveur (identifiants, assistant IA).
+- `dev/` : environnement local identique à Supabase (voir [Phase 2 §3](phase-2/README.md)) et tests de sauvegarde.
+- `ops/` : sauvegarde chiffrée, restauration, premier administrateur (voir [Phase 7](phase-7/README.md)).
 
 ## Base de données
 
 - `supabase/migrations/` : schéma (54 tables), règles de sécurité (RLS) et évolutions.
 - `supabase/seed/` : référentiel **provisoire, non officiel** de démonstration.
-- `supabase/tests/` : tests du scénario de validation et des droits d'accès (92 vérifications).
+- `supabase/tests/` : tests du scénario de validation et des droits d'accès (101 vérifications).
 
 ```bash
 cd supabase && ./tests/run_tests.sh   # PostgreSQL 15+ local requis

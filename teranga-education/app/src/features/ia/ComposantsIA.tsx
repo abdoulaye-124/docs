@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { assistant } from '../../lib/ia';
+import { assistant, useAssistantDisponible } from '../../lib/ia';
 import { Alerte } from '../../ui/composants';
 import { BoutonIA, PropositionIA } from '../../ui/assistant';
 
@@ -8,6 +8,7 @@ interface Analyse { constats: string[]; hypotheses: string[]; pistes: string[] }
 
 /** Analyse des résultats d'un élève (encadreur) : constats, hypothèses, pistes. */
 export function AnalyseIA({ studentId, nodeId }: { studentId: string; nodeId?: string }) {
+  const disponible = useAssistantDisponible();
   const [erreur, setErreur] = useState<string | null>(null);
   const m = useMutation({
     mutationFn: () => assistant<Analyse>('analyse_eleve', { student_id: studentId, node_id: nodeId }),
@@ -15,6 +16,7 @@ export function AnalyseIA({ studentId, nodeId }: { studentId: string; nodeId?: s
     onSuccess: () => setErreur(null),
   });
   const r = m.data?.resultat;
+  if (!disponible) return <p className="text-sm text-slate-500">Assistant non activé pour ce centre.</p>;
   return (
     <div className="space-y-3">
       <BoutonIA chargement={m.isPending} onClick={() => m.mutate()}>{r ? 'Relancer l’analyse' : 'Analyser les résultats'}</BoutonIA>
@@ -35,6 +37,7 @@ export function AnalyseIA({ studentId, nodeId }: { studentId: string; nodeId?: s
 
 /** Conseils pour le parent : explication des résultats et activités à la maison. */
 export function ConseilsParentIA({ studentId }: { studentId: string }) {
+  const disponible = useAssistantDisponible();
   const [erreur, setErreur] = useState<string | null>(null);
   const m = useMutation({
     mutationFn: () => assistant<{ resume: string; conseils: string[] }>('conseils_parent', { student_id: studentId }),
@@ -42,6 +45,7 @@ export function ConseilsParentIA({ studentId }: { studentId: string }) {
     onSuccess: () => setErreur(null),
   });
   const r = m.data?.resultat;
+  if (!disponible) return <p className="text-sm text-slate-500">Service non activé pour ce centre.</p>;
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-600">L’assistant explique simplement les résultats de votre enfant et propose des activités pour la maison.</p>
@@ -60,6 +64,7 @@ export function ConseilsParentIA({ studentId }: { studentId: string }) {
 
 /** Indices pour l'élève (entraînement uniquement ; jamais la réponse). */
 export function IndiceIA({ exerciseId }: { exerciseId: string }) {
+  const disponible = useAssistantDisponible();
   const [indices, setIndices] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [restants, setRestants] = useState<number | null>(null);
@@ -72,6 +77,7 @@ export function IndiceIA({ exerciseId }: { exerciseId: string }) {
     },
     onError: (e) => setMessage((e as Error).message),
   });
+  if (!disponible) return null;
   return (
     <section className="rounded-2xl border-2 border-violet-200 bg-violet-50 p-4">
       <button onClick={() => m.mutate()} disabled={m.isPending || restants === 0}

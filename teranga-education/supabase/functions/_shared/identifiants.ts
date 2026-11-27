@@ -23,6 +23,18 @@ export function formaterTelephone(tel: string | null | undefined): string {
   return `+221 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5, 7)} ${local.slice(7)}`;
 }
 
+/** Domaine technique (non routable) des comptes identifiés par téléphone.
+ *  La connexion par téléphone de Supabase exige un fournisseur de SMS payant :
+ *  on convertit donc le numéro en identifiant technique (aucun SMS, aucun frais).
+ *  Le numéro réel reste enregistré dans le profil pour le contact. */
+export const DOMAINE_TELEPHONES = 'telephones.teranga.invalid';
+
+export function telephoneVersEmail(saisie: string): string {
+  const n = normaliserTelephoneSN(saisie);
+  if (!n) throw new Error('Numéro de téléphone invalide');
+  return `t${n.slice(1)}@${DOMAINE_TELEPHONES}`;
+}
+
 /** Domaine technique (non routable) des comptes élèves : l'élève ne voit
  *  jamais d'adresse e-mail, seulement son identifiant court. */
 export const DOMAINE_ELEVES = 'eleves.teranga.invalid';

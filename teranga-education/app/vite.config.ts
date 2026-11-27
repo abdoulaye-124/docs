@@ -2,6 +2,24 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+
+/** En-têtes de sécurité de public/_headers (bloc « /* »), appliqués aussi en
+ *  aperçu local pour vérifier qu'ils ne cassent rien avant la mise en ligne. */
+function entetesProduction(): Record<string, string> {
+  const lignes = readFileSync(new URL('./public/_headers', import.meta.url), 'utf8').split('\n');
+  const h: Record<string, string> = {};
+  let dansBloc = false;
+  for (const l of lignes) {
+    if (/^\S/.test(l)) dansBloc = l.trim() === '/*';
+    else if (dansBloc && l.includes(':')) {
+      const i = l.indexOf(':');
+      const nom = l.slice(0, i).trim();
+      if (nom !== 'Strict-Transport-Security') h[nom] = l.slice(i + 1).trim();   // pas de HSTS en local (http)
+    }
+  }
+  return h;
+}
 
 // En développement, /auth/v1, /rest/v1 et /functions/v1 sont relayés vers la
 // passerelle locale (dev/local-stack.sh), comme sur un projet Supabase hébergé.
@@ -37,7 +55,7 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: { '@shared': fileURLToPath(new URL('../shared', import.meta.url)) },
+    alias: { '@shared': fileURLToPath(new URL('../supabase/functions/_shared', import.meta.url)) },
   },
   server: {
     host: '127.0.0.1',
@@ -55,6 +73,7 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 4173,
     strictPort: true,
+    headers: entetesProduction(),
     proxy: {
       '/auth/v1': passerelle,
       '/rest/v1': passerelle,
@@ -63,6 +82,6 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/**/*.test.ts', '../shared/**/*.test.ts'],
+    include: ['src/**/*.test.ts', '../supabase/functions/_shared/**/*.test.ts'],
   },
 });

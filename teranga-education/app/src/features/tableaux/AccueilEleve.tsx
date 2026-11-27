@@ -48,7 +48,7 @@ export default function AccueilEleve() {
       <div className="grid grid-cols-2 gap-4">
         {TUILES.map((t) => {
           const style = `flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl text-lg font-bold shadow-sm ${t.couleur}`;
-          const contenu = <><span aria-hidden className="text-5xl">{t.icone}</span>{t.libelle}{!t.a && <span className="text-xs font-medium opacity-70">Bientôt</span>}</>;
+          const contenu = <><span aria-hidden className="text-5xl">{t.icone}</span>{t.libelle}{!t.a && <span className="text-sm font-semibold">Bientôt</span>}</>;
           return t.a
             ? <Link key={t.libelle} to={t.a} className={style} onClick={() => lire(t.libelle)}>{contenu}</Link>
             : <button key={t.libelle} onClick={() => lire(`${t.libelle}. Bientôt disponible.`)} className={style}>{contenu}</button>;

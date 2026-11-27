@@ -9,6 +9,8 @@ import { ICONES_BLOC, LIBELLES_BLOC, useReferentiel, type Exercice } from '../..
 import { etoiles, type Maitrise } from '../../lib/suivi-regles';
 import { Alerte, Bouton, Chargement, Vide } from '../../ui/composants';
 import { lireAVoixHaute, useTravailEleve } from './donnees';
+import { ajouterALaFile, estErreurReseau } from '../../lib/horsligne';
+import { useSession } from '../../lib/session';
 import { AideWolofEleve, useAudioFrancais } from '../wolof/Wolof';
 import { IndiceIA } from '../ia/ComposantsIA';
 import { LecteurAudio } from '../../ui/audio';
@@ -174,23 +176,37 @@ function Question({ e, onEnvoyer, envoi }: { e: Exercice; onEnvoyer: (r: { selec
   );
 }
 
+/** Envoi d'une réponse. Sans réseau, la réponse est gardée sur le téléphone et
+ *  partira automatiquement au retour du réseau (même identifiant : pas de doublon). */
 function useEnvoi() {
   const qc = useQueryClient();
+  const { profil } = useSession();
   return useMutation({
-    mutationFn: async (p: { exercice: string; reponse: { selected?: string[]; text?: string }; evaluation?: string }) =>
-      verifier(await supabase.rpc('submit_answer', {
-        p_exercise: p.exercice, p_answer: p.reponse, p_client_id: crypto.randomUUID(), p_assessment: p.evaluation ?? null,
-      })),
+    mutationFn: async (p: { exercice: string; reponse: { selected?: string[]; text?: string }; evaluation?: string }): Promise<'envoye' | 'en_attente'> => {
+      const clientId = crypto.randomUUID();
+      try {
+        if (navigator.onLine === false) throw new Error('Failed to fetch (hors connexion)');
+        verifier(await supabase.rpc('submit_answer', {
+          p_exercise: p.exercice, p_answer: p.reponse, p_client_id: clientId, p_assessment: p.evaluation ?? null,
+        }));
+        return 'envoye';
+      } catch (e) {
+        if (!estErreurReseau(e) || !profil) throw e;
+        ajouterALaFile(profil.id, { client_id: clientId, exercise_id: p.exercice, assessment_id: p.evaluation ?? null, reponse: p.reponse, cree_le: new Date().toISOString() });
+        return 'en_attente';
+      }
+    },
+    networkMode: 'always',
     onSuccess: () => qc.invalidateQueries({ queryKey: ['travail-eleve'] }),
   });
 }
 
-function Bravo({ texte, suite }: { texte: string; suite: React.ReactNode }) {
+function Bravo({ texte, suite, detail }: { texte: string; suite: React.ReactNode; detail?: string }) {
   return (
     <div className="rounded-2xl bg-teranga-50 p-6 text-center" role="status">
       <p className="text-5xl" aria-hidden>🌟</p>
       <p className="mt-2 text-2xl font-bold text-teranga-900">{texte}</p>
-      <p className="mt-1 text-slate-700">Ton encadreur va corriger. Tu verras le résultat dans « Mes résultats ».</p>
+      <p className="mt-1 text-slate-700">{detail ?? 'Ton encadreur va corriger. Tu verras le résultat dans « Mes résultats ».'}</p>
       <div className="mt-5 flex flex-col gap-3">{suite}</div>
     </div>
   );
@@ -201,7 +217,7 @@ export function Exercer() {
   const nav = useNavigate();
   const t = useTravailEleve();
   const envoi = useEnvoi();
-  const [envoye, setEnvoye] = useState(false);
+  const [envoye, setEnvoye] = useState<false | 'envoye' | 'en_attente'>(false);
   const [erreur, setErreur] = useState<string | null>(null);
   if (t.isLoading) return <Chargement />;
   const e = t.data?.exercices.find((x) => x.id === id);
@@ -214,14 +230,15 @@ export function Exercer() {
       <Retour a="/eleve/exercices" texte="Mes exercices" />
       {erreur && <div className="mb-3"><Alerte>{erreur}</Alerte></div>}
       {envoye ? (
-        <Bravo texte="Réponse envoyée !" suite={<>
+        <Bravo texte={envoye === 'en_attente' ? 'Réponse gardée sur ton téléphone !' : 'Réponse envoyée !'}
+          detail={envoye === 'en_attente' ? 'Pas de réseau pour l’instant : elle partira toute seule dès que le réseau revient.' : undefined} suite={<>
           {suivants[0] && <Bouton className="min-h-[56px] text-lg" onClick={() => { setEnvoye(false); nav(`/eleve/exercer/${suivants[0].id}`); }}>Exercice suivant ›</Bouton>}
           <Link to="/eleve/exercices" className="font-semibold text-teranga-800">Retour à mes exercices</Link>
         </>} />
       ) : (
         <>
           <Question key={e.id} e={e} envoi={envoi.isPending}
-            onEnvoyer={(r) => envoi.mutate({ exercice: e.id, reponse: r }, { onSuccess: () => setEnvoye(true), onError: (x) => setErreur(messageErreur(x)) })} />
+            onEnvoyer={(r) => envoi.mutate({ exercice: e.id, reponse: r }, { onSuccess: (etat) => setEnvoye(etat), onError: (x) => setErreur(messageErreur(x)) })} />
           {/* Aide en wolof : entraînement uniquement (jamais pendant une évaluation). */}
           <div className="mt-6 space-y-4">
             <IndiceIA key={`indice-${e.id}`} exerciseId={e.id} />

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  codeImageVersMotDePasse, formaterTelephone, identifiantValide, identifiantVersEmail,
+  codeImageVersMotDePasse, formaterTelephone, telephoneVersEmail, identifiantValide, identifiantVersEmail,
   normaliserTelephoneSN, proposerIdentifiant, tirerCodeImage, IMAGES_CODE,
 } from './identifiants';
 
@@ -16,6 +16,15 @@ describe('normaliserTelephoneSN', () => {
 
   it.each(['12345', '0612345678', '+33612345678', '87 123 45 67', ''])('refuse %s', (x) =>
     expect(normaliserTelephoneSN(x)).toBeNull());
+});
+
+describe('telephoneVersEmail', () => {
+  it('donne le même identifiant quelle que soit l’écriture du numéro', () => {
+    expect(telephoneVersEmail('77 123 45 67')).toBe('t221771234567@telephones.teranga.invalid');
+    expect(telephoneVersEmail('+221771234567')).toBe('t221771234567@telephones.teranga.invalid');
+    expect(telephoneVersEmail('00221 77-123-45-67')).toBe('t221771234567@telephones.teranga.invalid');
+  });
+  it('refuse un numéro invalide', () => expect(() => telephoneVersEmail('123')).toThrow());
 });
 
 describe('formaterTelephone', () => {

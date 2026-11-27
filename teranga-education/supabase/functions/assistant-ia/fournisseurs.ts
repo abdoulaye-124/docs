@@ -3,7 +3,7 @@
 //  * « anthropic »  : API Claude, via le kit officiel. La clé ANTHROPIC_API_KEY
 //                     reste une variable du serveur, jamais envoyée au navigateur.
 import Anthropic from 'npm:@anthropic-ai/sdk@1.7.0';
-import { simuler, type Contexte, type RequeteIA, type Tache } from '../../../shared/ia.ts';
+import { choisirFournisseur, simuler, type Contexte, type Fournisseur, type RequeteIA, type Tache } from '../_shared/ia.ts';
 
 export interface ReponseIA {
   json: unknown;
@@ -19,10 +19,8 @@ export class ErreurIA extends Error {
   }
 }
 
-export function fournisseurConfigure(): 'anthropic' | 'simulation' {
-  const choix = Deno.env.get('TERANGA_IA_FOURNISSEUR');
-  if (choix === 'simulation' || choix === 'anthropic') return choix;
-  return Deno.env.get('ANTHROPIC_API_KEY') ? 'anthropic' : 'simulation';
+export function fournisseurConfigure(): Fournisseur {
+  return choisirFournisseur(Deno.env.get('TERANGA_IA_FOURNISSEUR'), !!Deno.env.get('ANTHROPIC_API_KEY'));
 }
 
 /** Modèle par défaut : Claude Opus 5.5. Modifiable sans toucher au code
@@ -71,6 +69,8 @@ async function appelerAnthropic(req: RequeteIA): Promise<ReponseIA> {
 }
 
 export async function demanderIA(tache: Tache, contexte: Contexte, req: RequeteIA): Promise<ReponseIA> {
-  if (fournisseurConfigure() === 'anthropic') return appelerAnthropic(req);
+  const f = fournisseurConfigure();
+  if (f === 'aucun') throw new ErreurIA('Assistant non activé : aucun fournisseur d’IA n’est configuré.', 503);
+  if (f === 'anthropic') return appelerAnthropic(req);
   return { json: simuler(tache, contexte), fournisseur: 'simulation', modele: 'simulation', tokens_in: null, tokens_out: null };
 }
