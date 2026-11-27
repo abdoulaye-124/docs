@@ -13,7 +13,7 @@ Plateforme de gestion d'un centre d'accompagnement, de remédiation et de réuss
 | 4 | Suivi et remédiation (dossier, progression, diagnostic, programmes, bilans) | ✅ Validé par le promoteur |
 | 5 | Français / wolof (audio, explications, relecture) | ✅ Validé par le promoteur |
 | 6 | Assistant pédagogique (IA) | ✅ Validé par le promoteur (testé en simulation) |
-| 7 | Tests, sécurité, hors connexion, sauvegardes, préparation de la mise en ligne (zéro frais) | ✅ Livré, en attente de validation ; mise en ligne à faire ensemble |
+| 7 | Tests, sécurité, hors connexion, sauvegardes, préparation de la mise en ligne (zéro frais) | ✅ Validé par le promoteur ; mise en ligne en cours |
 
 ## Documents
 

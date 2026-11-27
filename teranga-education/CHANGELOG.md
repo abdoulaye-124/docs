@@ -1,6 +1,6 @@
 # Journal des évolutions — TERANGA ÉDUCATION
 
-## 2026-11-27 — Phase 7 : tests, sécurité et préparation de la mise en ligne (v0.7.0)
+## 2026-11-27 — Phase 7 : tests, sécurité et préparation de la mise en ligne (v0.7.0) — validée par le promoteur
 
 - Cadre zéro frais : assistant IA désactivé sans clé (boutons masqués), connexion par téléphone sans SMS (identifiant technique), hébergement gratuit prévu (Supabase Free, Cloudflare Pages).
 - Sécurité : note automatique illisible par élèves et parents (migration 9, `auto_scores`), contrôles globaux RLS / droits anonymes / search_path, en-têtes de sécurité, React Router 7.18.5 (0 vulnérabilité), audit des dépendances en intégration continue.
